@@ -1,0 +1,82 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f7fa;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+header {
+    background-color: #1e3a8a;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+h1, h2 {
+    margin: 0;
+}
+
+.events-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px;
+}
+
+.event-card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.event-card .details {
+    display: flex;
+    flex-direction: column;
+}
+
+.event-card .details span {
+    margin: 3px 0;
+}
+
+.sentiment-bullish {
+    color: green;
+    font-weight: bold;
+}
+
+.sentiment-bearish {
+    color: red;
+    font-weight: bold;
+}
+
+.sentiment-neutral {
+    color: gray;
+    font-weight: bold;
+}
+
+.impact-high {
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+.impact-medium {
+    color: #f57c00;
+    font-weight: bold;
+}
+
+.impact-low {
+    color: #1976d2;
+    font-weight: bold;
+}
+
+footer {
+    text-align: center;
+    padding: 10px;
+    font-size: 0.9em;
+    background: #eee;
+    margin-top: 20px;
+}
