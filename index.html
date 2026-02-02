@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ForexLive Intelligence - Real-time Market News & AI Analysis</title>
+    <title>ForexLive Intelligence - AI-Powered Market Analysis</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -34,6 +34,13 @@
                 </div>
                 
                 <div class="header-controls">
+                    <button class="control-btn" id="mrktAlertsBtn" onclick="toggleMRKTAlerts()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                        </svg>
+                        <span>MRKT Alerts</span>
+                        <span class="notification-badge" id="mrktBadge">OFF</span>
+                    </button>
                     <button class="control-btn" id="notificationBtn" onclick="toggleNotifications()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -50,6 +57,14 @@
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
                         <span>AI Calendar</span>
+                    </button>
+                    <button class="control-btn" onclick="showMarketSummary()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        <span>Market Summary</span>
                     </button>
                     <button class="control-btn refresh-btn" id="refreshBtn" onclick="loadAllNews()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -86,8 +101,8 @@
                         <div class="status-icon">🎯</div>
                     </div>
                     <div class="status-info">
-                        <span class="status-label">Active Feeds</span>
-                        <span class="status-value" id="activeFeeds">13</span>
+                        <span class="status-label">High Impact</span>
+                        <span class="status-value" id="highImpactCount">0</span>
                     </div>
                 </div>
                 <div class="status-card">
@@ -167,6 +182,21 @@
                     <option value="Neutral">➡️ Neutral</option>
                 </select>
             </div>
+
+            <div class="filter-section">
+                <label class="filter-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
+                    Trade Conviction
+                </label>
+                <select id="convictionFilter" class="filter-select" onchange="applyFilters()">
+                    <option value="all">All Signals</option>
+                    <option value="high">⚡ High Conviction</option>
+                    <option value="medium">📊 Medium Conviction</option>
+                    <option value="low">📉 Low Conviction</option>
+                </select>
+            </div>
         </div>
 
         <!-- News Grid -->
@@ -182,14 +212,38 @@
             </div>
         </div>
 
+        <!-- Market Summary Modal -->
+        <div id="marketSummaryModal" class="modal">
+            <div class="modal-backdrop" onclick="closeMarketSummary()"></div>
+            <div class="modal-container large">
+                <div class="modal-header">
+                    <div class="modal-title-section">
+                        <h2 class="modal-title">Currency Market Summary</h2>
+                        <p class="modal-subtitle">Real-time sentiment and strength analysis</p>
+                    </div>
+                    <button class="modal-close-btn" onclick="closeMarketSummary()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="marketSummaryContainer" class="market-summary-content">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Economic Calendar Modal -->
         <div id="calendarModal" class="modal">
             <div class="modal-backdrop" onclick="closeCalendar()"></div>
-            <div class="modal-container">
+            <div class="modal-container large">
                 <div class="modal-header">
                     <div class="modal-title-section">
                         <h2 class="modal-title">AI Economic Calendar</h2>
-                        <p class="modal-subtitle">High-Impact Events with AI Predictions</p>
+                        <p class="modal-subtitle">High-Impact Events with AI Predictions & Impact Analysis</p>
                     </div>
                     <button class="modal-close-btn" onclick="closeCalendar()">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -207,6 +261,30 @@
                             </div>
                             <p class="loading-message">Loading economic calendar...</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Analysis Modal -->
+        <div id="aiAnalysisModal" class="modal">
+            <div class="modal-backdrop" onclick="closeAIAnalysis()"></div>
+            <div class="modal-container large">
+                <div class="modal-header">
+                    <div class="modal-title-section">
+                        <h2 class="modal-title">🧠 AI Market Analysis</h2>
+                        <p class="modal-subtitle">Deep fundamental and technical insights</p>
+                    </div>
+                    <button class="modal-close-btn" onclick="closeAIAnalysis()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="aiAnalysisContainer" class="ai-analysis-content">
+                        <!-- Will be populated by JavaScript -->
                     </div>
                 </div>
             </div>
