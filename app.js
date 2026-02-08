@@ -368,83 +368,119 @@ class MarketIntelligence {
         return 'low';
     }
     
-    static generateAIAnalysis(article) {
-        const analysis = {
-            title: article.title,
-            summary: '',
-            fundamentals: '',
-            technicals: '',
-            affectedAssets: [],
-            tradingImplications: '',
-            retailPositioning: this.simulateRetailPositioning(article),
-            recommendations: []
-        };
+    static async generateAIAnalysis(article) {
+        // Show loading state
+        const container = document.getElementById('aiAnalysisContainer');
+        container.innerHTML = `
+            <div class="loading-container">
+                <div class="loading-spinner-advanced">
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                </div>
+                <p class="loading-message">AI is analyzing market data...</p>
+                <p class="loading-submessage">Generating professional insights</p>
+            </div>
+        `;
         
-        // Generate summary based on sentiment and impact
-        const currencies = Object.keys(article.currencySentiment || {});
-        if (currencies.length > 0) {
-            const sentiments = Object.entries(article.currencySentiment);
+        try {
+            // Prepare context for AI
+            const currencies = Object.keys(article.currencySentiment || {});
+            const sentiments = Object.entries(article.currencySentiment || {});
             const bullishCurrencies = sentiments.filter(([_, s]) => s === 'Bullish').map(([c]) => c);
             const bearishCurrencies = sentiments.filter(([_, s]) => s === 'Bearish').map(([c]) => c);
             
-            if (bullishCurrencies.length > 0 && bearishCurrencies.length > 0) {
-                analysis.summary = `Strong divergence detected: ${bullishCurrencies.join(', ')} showing bullish momentum while ${bearishCurrencies.join(', ')} under pressure. This creates potential trading opportunities.`;
-                
-                analysis.fundamentals = `The ${bullishCurrencies[0]} is strengthening due to ${article.centralBanks.length > 0 ? 'hawkish central bank policy signals' : 'positive economic fundamentals'}. Meanwhile, ${bearishCurrencies[0]} faces headwinds from ${article.centralBanks.length > 0 ? 'dovish policy expectations' : 'weaker economic data'}.`;
-                
-                analysis.technicals = `Technical structure supports the fundamental narrative. ${bullishCurrencies[0]} has broken above key resistance levels, while ${bearishCurrencies[0]} struggles at support. Momentum indicators confirm the directional bias.`;
-                
-                analysis.affectedAssets = [
-                    ...bullishCurrencies.map(c => ({currency: c, direction: 'up', strength: 'strong'})),
-                    ...bearishCurrencies.map(c => ({currency: c, direction: 'down', strength: 'strong'}))
-                ];
-                
-                if (bullishCurrencies.length === 1 && bearishCurrencies.length === 1) {
-                    analysis.tradingImplications = `High-conviction setup: Consider ${bullishCurrencies[0]}/${bearishCurrencies[0]} long positions. Both fundamentals and technicals align for this trade. Risk management remains critical.`;
-                    
-                    analysis.recommendations = [
-                        `Long ${bullishCurrencies[0]}/${bearishCurrencies[0]} on pullbacks`,
-                        'Set stop loss below recent support',
-                        'Scale into position as conviction builds',
-                        'Monitor upcoming economic releases for confirmation'
-                    ];
+            const prompt = `You are a professional forex market analyst. Analyze this news article and provide detailed trading insights.
+
+Article Title: ${article.title}
+Description: ${article.description}
+Impact Level: ${article.impact}
+Central Banks Mentioned: ${article.centralBanks?.join(', ') || 'None'}
+Bullish Currencies: ${bullishCurrencies.join(', ') || 'None'}
+Bearish Currencies: ${bearishCurrencies.join(', ') || 'None'}
+${article.goldSentiment ? `Gold Sentiment: ${article.goldSentiment}` : ''}
+
+Provide a comprehensive analysis in the following JSON format:
+{
+    "summary": "Brief 2-3 sentence overview of the market impact",
+    "fundamentals": "Detailed fundamental analysis explaining the underlying economic drivers (3-4 sentences)",
+    "technicals": "Technical analysis perspective including likely price action and key levels (3-4 sentences)",
+    "tradingSetups": [
+        "Specific trading setup 1 with entry/exit strategy",
+        "Specific trading setup 2 with entry/exit strategy"
+    ],
+    "riskFactors": [
+        "Key risk factor 1",
+        "Key risk factor 2",
+        "Key risk factor 3"
+    ],
+    "timeHorizon": "Short-term (1-3 days) OR Medium-term (1-2 weeks) OR Long-term (1+ months)",
+    "confidenceLevel": "High OR Medium OR Low",
+    "keyLevels": {
+        "support": ["level 1", "level 2"],
+        "resistance": ["level 1", "level 2"]
+    }
+}
+
+Be specific, actionable, and professional. Focus on real trading opportunities.`;
+
+            // Call Puter AI
+            const aiResponse = await puter.ai.chat(prompt);
+            
+            // Parse AI response
+            let analysis;
+            try {
+                // Try to extract JSON from response
+                const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    analysis = JSON.parse(jsonMatch[0]);
                 } else {
-                    analysis.tradingImplications = `Multiple currency movements create cross-pair opportunities. Focus on pairs with the strongest fundamental divergence and technical confirmation.`;
-                    
-                    analysis.recommendations = [
-                        'Wait for clear technical setup before entry',
-                        'Compare multiple pairs to find best risk/reward',
-                        'Use smaller position sizes due to market complexity',
-                        'Monitor correlation between pairs'
-                    ];
+                    throw new Error('No JSON found in response');
                 }
-            } else {
-                analysis.summary = `Market showing ${bullishCurrencies.length > 0 ? 'bullish' : 'bearish'} bias across ${currencies.join(', ')}. Directional momentum is building but lacks clear opposing forces.`;
-                
-                analysis.fundamentals = `Sentiment is one-sided, suggesting either strong fundamental drivers or market overreaction. Exercise caution as reversals can be sharp in these conditions.`;
-                
-                analysis.tradingImplications = `Low-conviction environment. Best to wait for clear opposing forces or confirmation from economic data before taking large positions.`;
-                
-                analysis.recommendations = [
-                    'Reduce position sizes in one-sided markets',
-                    'Wait for pullbacks or consolidation',
-                    'Look for contrary indicators before fading',
-                    'Consider taking profits early'
-                ];
+            } catch (parseError) {
+                // Fallback if JSON parsing fails
+                analysis = {
+                    summary: aiResponse.substring(0, 300),
+                    fundamentals: "AI analysis is processing. The market is reacting to the news with notable volatility.",
+                    technicals: "Technical indicators suggest monitoring key support and resistance levels.",
+                    tradingSetups: ["Monitor for clear directional breakout", "Wait for confirmation before entry"],
+                    riskFactors: ["Market volatility", "News-driven uncertainty", "Multiple conflicting signals"],
+                    timeHorizon: "Short-term (1-3 days)",
+                    confidenceLevel: "Medium",
+                    keyLevels: { support: ["Recent low"], resistance: ["Recent high"] }
+                };
             }
-        } else {
-            analysis.summary = 'No clear directional signals detected. Market likely in consolidation or awaiting catalysts.';
-            analysis.fundamentals = 'Fundamental picture remains mixed with balanced risks.';
-            analysis.tradingImplications = 'Range-bound conditions likely. Focus on support/resistance trading rather than breakouts.';
-            analysis.recommendations = [
-                'Avoid chasing moves in either direction',
-                'Use tight stops in range-bound conditions',
-                'Wait for clear breakout with volume confirmation',
-                'Consider mean-reversion strategies'
-            ];
+            
+            // Add retail positioning data
+            analysis.retailPositioning = this.simulateRetailPositioning(article);
+            
+            return analysis;
+            
+        } catch (error) {
+            console.error('AI Analysis Error:', error);
+            
+            // Fallback analysis
+            return {
+                summary: `Market is reacting to ${article.title}. ${bullishCurrencies.length > 0 ? bullishCurrencies.join(', ') + ' showing strength' : ''} ${bearishCurrencies.length > 0 ? bearishCurrencies.join(', ') + ' under pressure' : ''}.`,
+                fundamentals: "This news event is influencing market sentiment. Traders should monitor economic data releases and central bank commentary for further direction.",
+                technicals: "Key support and resistance levels should be monitored. Look for confirmation through volume and momentum indicators before entering positions.",
+                tradingSetups: [
+                    "Wait for clear breakout confirmation with volume",
+                    "Consider counter-trend setups at extreme levels"
+                ],
+                riskFactors: [
+                    "High market volatility during news events",
+                    "Potential for rapid reversals",
+                    "Conflicting fundamental signals"
+                ],
+                timeHorizon: "Short-term (1-3 days)",
+                confidenceLevel: "Medium",
+                keyLevels: {
+                    support: ["Previous session low", "Weekly support"],
+                    resistance: ["Previous session high", "Weekly resistance"]
+                },
+                retailPositioning: this.simulateRetailPositioning(article)
+            };
         }
-        
-        return analysis;
     }
     
     static simulateRetailPositioning(article) {
@@ -468,7 +504,7 @@ class MarketIntelligence {
         };
     }
     
-    static generateMarketSummary(articles) {
+    static async generateMarketSummary(articles) {
         const summary = {
             overview: '',
             currencies: {}
@@ -528,22 +564,53 @@ class MarketIntelligence {
             };
         });
         
-        const strongCurrencies = Object.entries(summary.currencies)
-            .filter(([_, data]) => data.sentiment === 'Bullish')
-            .map(([currency]) => currency);
-        
-        const weakCurrencies = Object.entries(summary.currencies)
-            .filter(([_, data]) => data.sentiment === 'Bearish')
-            .map(([currency]) => currency);
-        
-        if (strongCurrencies.length > 0 && weakCurrencies.length > 0) {
-            summary.overview = `FX markets show clear divergence with ${strongCurrencies.join(', ')} strengthening while ${weakCurrencies.join(', ')} face pressure. This creates high-conviction trading opportunities.`;
-        } else if (strongCurrencies.length > 0) {
-            summary.overview = `Risk-on sentiment dominates with ${strongCurrencies.join(', ')} leading gains. Market lacks clear bearish catalysts.`;
-        } else if (weakCurrencies.length > 0) {
-            summary.overview = `Risk-off conditions prevail with ${weakCurrencies.join(', ')} under pressure. Defensive positioning recommended.`;
-        } else {
-            summary.overview = `FX markets are cautious amid mixed economic data and geopolitical tensions, with currencies trading in tight ranges.`;
+        // Get AI-powered market overview
+        try {
+            const currencyData = Object.entries(summary.currencies).map(([curr, data]) => 
+                `${curr}: ${data.sentiment} (Strength: ${data.strength}%, Articles: ${data.articleCount})`
+            ).join('\n');
+            
+            const recentNews = articles.slice(0, 5).map(a => a.title).join('\n');
+            
+            const prompt = `You are a professional forex market analyst. Based on the current market data, provide a brief professional overview.
+
+Currency Sentiment Data:
+${currencyData}
+
+Recent Major News:
+${recentNews}
+
+Provide a 2-3 sentence professional market overview focusing on:
+1. Main market themes
+2. Key trading opportunities
+3. Risk factors to watch
+
+Keep it concise and actionable for traders.`;
+
+            const aiOverview = await puter.ai.chat(prompt);
+            summary.overview = aiOverview;
+            
+        } catch (error) {
+            console.error('AI Overview Error:', error);
+            
+            // Fallback overview
+            const strongCurrencies = Object.entries(summary.currencies)
+                .filter(([_, data]) => data.sentiment === 'Bullish')
+                .map(([currency]) => currency);
+            
+            const weakCurrencies = Object.entries(summary.currencies)
+                .filter(([_, data]) => data.sentiment === 'Bearish')
+                .map(([currency]) => currency);
+            
+            if (strongCurrencies.length > 0 && weakCurrencies.length > 0) {
+                summary.overview = `FX markets show clear divergence with ${strongCurrencies.join(', ')} strengthening while ${weakCurrencies.join(', ')} face pressure. This creates high-conviction trading opportunities.`;
+            } else if (strongCurrencies.length > 0) {
+                summary.overview = `Risk-on sentiment dominates with ${strongCurrencies.join(', ')} leading gains. Market lacks clear bearish catalysts.`;
+            } else if (weakCurrencies.length > 0) {
+                summary.overview = `Risk-off conditions prevail with ${weakCurrencies.join(', ')} under pressure. Defensive positioning recommended.`;
+            } else {
+                summary.overview = `FX markets are cautious amid mixed economic data and geopolitical tensions, with currencies trading in tight ranges.`;
+            }
         }
         
         return summary;
@@ -1092,7 +1159,7 @@ function renderMarketSummary() {
         <div class="market-overview">
             <p class="market-overview-text">
                 ${summary.overview}
-                <span class="ai-badge">🧠</span>
+                <span class="ai-badge">🧠 AI Powered</span>
             </p>
         </div>
         
@@ -1133,6 +1200,20 @@ function renderMarketSummary() {
                         <div class="strength-bar ${strengthClass}" style="width: ${data.strength}%">
                             ${data.strength}%
                         </div>
+                    </div>
+                </div>
+                <div class="currency-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Bullish Signals</span>
+                        <span class="stat-value bullish">${data.bullishCount || 0}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Bearish Signals</span>
+                        <span class="stat-value bearish">${data.bearishCount || 0}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Articles</span>
+                        <span class="stat-value">${data.articleCount}</span>
                     </div>
                 </div>
             </div>
@@ -1206,15 +1287,20 @@ function initEconomicCalendar() {
 }
 
 // ===== AI Analysis Modal =====
-function showAIAnalysis(articleIndex) {
+async function showAIAnalysis(articleIndex) {
     const article = state.newsCache[articleIndex];
-    const analysis = MarketIntelligence.generateAIAnalysis(article);
+    
+    // Show modal first
+    document.getElementById('aiAnalysisModal').classList.add('active');
+    
+    // Get AI analysis
+    const analysis = await MarketIntelligence.generateAIAnalysis(article);
     
     const container = document.getElementById('aiAnalysisContainer');
     
     let html = `
         <div class="ai-analysis-header">
-            <h3 class="ai-analysis-title">${analysis.title}</h3>
+            <h3 class="ai-analysis-title">${article.title}</h3>
             <p class="ai-analysis-subtitle">${analysis.summary}</p>
         </div>
         
@@ -1229,23 +1315,108 @@ function showAIAnalysis(articleIndex) {
         <div class="analysis-section">
             <div class="analysis-section-header">
                 <div class="analysis-icon">📈</div>
-                <h4 class="analysis-section-title">Technical Outlook</h4>
+                <h4 class="analysis-section-title">Technical Analysis</h4>
             </div>
             <p class="analysis-content">${analysis.technicals}</p>
         </div>
         
         <div class="analysis-section">
             <div class="analysis-section-header">
-                <div class="analysis-icon">💼</div>
-                <h4 class="analysis-section-title">Trading Implications</h4>
+                <div class="analysis-icon">⏱️</div>
+                <h4 class="analysis-section-title">Trade Setup & Time Horizon</h4>
             </div>
-            <p class="analysis-content">${analysis.tradingImplications}</p>
+            <div class="time-horizon-badge ${analysis.confidenceLevel?.toLowerCase() || 'medium'}">
+                ${analysis.timeHorizon || 'Short-term (1-3 days)'} | Confidence: ${analysis.confidenceLevel || 'Medium'}
+            </div>
+            <div class="trading-setups">
+    `;
+    
+    if (analysis.tradingSetups && analysis.tradingSetups.length > 0) {
+        analysis.tradingSetups.forEach(setup => {
+            html += `
+                <div class="setup-item">
+                    <span class="setup-icon">🎯</span>
+                    <span>${setup}</span>
+                </div>
+            `;
+        });
+    }
+    
+    html += `
+            </div>
         </div>
+    `;
+    
+    // Key Levels Section
+    if (analysis.keyLevels) {
+        html += `
+            <div class="analysis-section">
+                <div class="analysis-section-header">
+                    <div class="analysis-icon">🎚️</div>
+                    <h4 class="analysis-section-title">Key Technical Levels</h4>
+                </div>
+                <div class="key-levels-grid">
+                    <div class="levels-column">
+                        <div class="levels-header support">Support Levels</div>
+        `;
         
+        if (analysis.keyLevels.support) {
+            analysis.keyLevels.support.forEach(level => {
+                html += `<div class="level-item">${level}</div>`;
+            });
+        }
+        
+        html += `
+                    </div>
+                    <div class="levels-column">
+                        <div class="levels-header resistance">Resistance Levels</div>
+        `;
+        
+        if (analysis.keyLevels.resistance) {
+            analysis.keyLevels.resistance.forEach(level => {
+                html += `<div class="level-item">${level}</div>`;
+            });
+        }
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Risk Factors Section
+    if (analysis.riskFactors && analysis.riskFactors.length > 0) {
+        html += `
+            <div class="analysis-section risk-section">
+                <div class="analysis-section-header">
+                    <div class="analysis-icon">⚠️</div>
+                    <h4 class="analysis-section-title">Risk Factors to Monitor</h4>
+                </div>
+                <div class="risk-factors">
+        `;
+        
+        analysis.riskFactors.forEach(risk => {
+            html += `
+                <div class="risk-item">
+                    <span class="risk-bullet">⚠️</span>
+                    ${risk}
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    // Retail Positioning
+    html += `
         <div class="analysis-section">
             <div class="analysis-section-header">
                 <div class="analysis-icon">👥</div>
-                <h4 class="analysis-section-title">Retail Positioning</h4>
+                <h4 class="analysis-section-title">Retail Positioning Sentiment</h4>
             </div>
             <div class="retail-positioning">
                 <div class="positioning-bar-container">
@@ -1259,36 +1430,14 @@ function showAIAnalysis(articleIndex) {
                 </div>
             </div>
             <p class="analysis-content" style="margin-top: 1rem;">
-                ${analysis.retailPositioning.long > 55 ? 'Retail traders are heavily long, which often indicates potential for downside moves as institutional players may fade this positioning.' :
-                  analysis.retailPositioning.long < 45 ? 'Retail traders are heavily short, suggesting potential for upside as smart money may be on the long side.' :
-                  'Retail positioning is balanced, indicating indecision and potential for breakout in either direction.'}
+                ${analysis.retailPositioning.long > 55 ? '⚠️ Retail traders are heavily long, which often indicates potential for downside moves as institutional players may fade this positioning.' :
+                  analysis.retailPositioning.long < 45 ? '✅ Retail traders are heavily short, suggesting potential for upside as smart money may be on the long side.' :
+                  '➡️ Retail positioning is balanced, indicating indecision and potential for breakout in either direction.'}
             </p>
-        </div>
-        
-        <div class="analysis-section">
-            <div class="analysis-section-header">
-                <div class="analysis-icon">💡</div>
-                <h4 class="analysis-section-title">Recommendations</h4>
-            </div>
-            <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem;">
-    `;
-    
-    analysis.recommendations.forEach(rec => {
-        html += `
-            <li style="padding-left: 1.5rem; position: relative;">
-                <span style="position: absolute; left: 0;">✓</span>
-                ${rec}
-            </li>
-        `;
-    });
-    
-    html += `
-            </ul>
         </div>
     `;
     
     container.innerHTML = html;
-    document.getElementById('aiAnalysisModal').classList.add('active');
 }
 
 function closeAIAnalysis() {
@@ -1351,7 +1500,7 @@ async function loadAllNews() {
             state.trumpCache = articles.filter(a => a.categories.includes('trump'));
             
             state.lastUpdateTime = new Date();
-            state.marketSummary = MarketIntelligence.generateMarketSummary(articles);
+            state.marketSummary = await MarketIntelligence.generateMarketSummary(articles);
             renderNews();
             updateStatus(`Loaded ${articles.length} articles`, 'success');
             
