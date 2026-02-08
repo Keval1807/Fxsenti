@@ -1508,6 +1508,240 @@ body {
     line-height: 1.7;
 }
 
+/* Currency Analysis Cards with Pros/Cons */
+.affected-currencies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.currency-analysis-card {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid var(--border-color);
+    transition: all var(--transition-normal);
+}
+
+.currency-analysis-card.bullish {
+    border-color: var(--accent-success);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(16, 185, 129, 0.02));
+}
+
+.currency-analysis-card.bearish {
+    border-color: var(--accent-danger);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.02));
+}
+
+.currency-analysis-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.currency-analysis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.currency-name-large {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.currency-impact-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.currency-impact-badge.bullish {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-success);
+}
+
+.currency-impact-badge.bearish {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--accent-danger);
+}
+
+.pros-cons-container {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.pros-section,
+.cons-section {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+}
+
+.pros-header,
+.cons-header {
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.pros-header {
+    color: var(--accent-success);
+}
+
+.cons-header {
+    color: var(--accent-warning);
+}
+
+.pros-list,
+.cons-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.pros-list li,
+.cons-list li {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.pros-list li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--accent-success);
+    font-weight: 700;
+}
+
+.cons-list li::before {
+    content: '⚠';
+    position: absolute;
+    left: 0;
+    color: var(--accent-warning);
+}
+
+.currency-outlook {
+    padding: 1rem;
+    background: var(--bg-primary);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.currency-outlook strong {
+    color: var(--accent-primary);
+}
+
+/* Trading Recommendations */
+.trading-recommendations-grid {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.recommendation-card {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-normal);
+}
+
+.recommendation-card:hover {
+    border-color: var(--accent-primary);
+    transform: translateX(4px);
+}
+
+.rec-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.rec-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 50%;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.rec-setup {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.rec-details {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.rec-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+}
+
+.rec-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
+.rec-value {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.rec-reasoning {
+    padding: 0.75rem;
+    background: rgba(59, 130, 246, 0.05);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.rec-reasoning strong {
+    color: var(--accent-primary);
+}
+
 .time-horizon-badge {
     display: inline-block;
     padding: 0.75rem 1.25rem;
