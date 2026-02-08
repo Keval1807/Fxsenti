@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <!-- TradingView Widget Script -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
     <!-- Animated Background -->
@@ -46,8 +48,17 @@
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                         </svg>
-                        <span>Notifications</span>
+                        <span>Push Notifications</span>
                         <span class="notification-badge" id="notifBadge">OFF</span>
+                    </button>
+                    <button class="control-btn trump-btn" onclick="showTrumpTracker()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Trump Tracker</span>
+                        <span class="notification-badge live-badge">LIVE</span>
                     </button>
                     <button class="control-btn calendar-btn" onclick="showCalendar()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -56,7 +67,15 @@
                             <line x1="8" y1="2" x2="8" y2="6"></line>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
-                        <span>AI Calendar</span>
+                        <span>Economic Calendar</span>
+                    </button>
+                    <button class="control-btn" onclick="showCharts()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="20" x2="12" y2="10"></line>
+                            <line x1="18" y1="20" x2="18" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="16"></line>
+                        </svg>
+                        <span>Live Charts</span>
                     </button>
                     <button class="control-btn" onclick="showMarketSummary()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -114,6 +133,15 @@
                         <span class="status-value" id="lastUpdate">--:--</span>
                     </div>
                 </div>
+                <div class="status-card">
+                    <div class="status-icon-wrap">
+                        <div class="status-icon">🦅</div>
+                    </div>
+                    <div class="status-info">
+                        <span class="status-label">Trump News</span>
+                        <span class="status-value" id="trumpCount">0</span>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -142,6 +170,10 @@
                     <button class="chip" data-filter="gold" onclick="setSourceFilter('gold')">
                         <span class="chip-icon">⚜️</span>
                         Gold/XAU
+                    </button>
+                    <button class="chip" data-filter="trump" onclick="setSourceFilter('trump')">
+                        <span class="chip-icon">🦅</span>
+                        Trump
                     </button>
                 </div>
             </div>
@@ -182,21 +214,6 @@
                     <option value="Neutral">➡️ Neutral</option>
                 </select>
             </div>
-
-            <div class="filter-section">
-                <label class="filter-label">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                    </svg>
-                    Trade Conviction
-                </label>
-                <select id="convictionFilter" class="filter-select" onchange="applyFilters()">
-                    <option value="all">All Signals</option>
-                    <option value="high">⚡ High Conviction</option>
-                    <option value="medium">📊 Medium Conviction</option>
-                    <option value="low">📉 Low Conviction</option>
-                </select>
-            </div>
         </div>
 
         <!-- News Grid -->
@@ -207,7 +224,7 @@
                     <div class="spinner-ring"></div>
                     <div class="spinner-ring"></div>
                 </div>
-                <p class="loading-message">Analyzing market data from 13 sources...</p>
+                <p class="loading-message">Analyzing market data from 15+ sources...</p>
                 <p class="loading-submessage">Applying AI sentiment analysis</p>
             </div>
         </div>
@@ -215,7 +232,7 @@
         <!-- Market Summary Modal -->
         <div id="marketSummaryModal" class="modal">
             <div class="modal-backdrop" onclick="closeMarketSummary()"></div>
-            <div class="modal-container large">
+            <div class="modal-container extra-large">
                 <div class="modal-header">
                     <div class="modal-title-section">
                         <h2 class="modal-title">Currency Market Summary</h2>
@@ -229,9 +246,63 @@
                     </button>
                 </div>
                 <div class="modal-body">
+                    <!-- Currency Strength Meter Embed -->
+                    <div class="strength-meter-container">
+                        <div class="strength-meter-header">
+                            <h3>Live Currency Strength Meter</h3>
+                            <a href="https://currencystrengthmeter.org/" target="_blank" class="external-link">
+                                Open Full View
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                        </div>
+                        <iframe 
+                            src="https://currencystrengthmeter.org/" 
+                            width="100%" 
+                            height="600" 
+                            frameborder="0"
+                            style="border-radius: 12px; background: var(--bg-secondary);">
+                        </iframe>
+                    </div>
+                    
                     <div id="marketSummaryContainer" class="market-summary-content">
                         <!-- Will be populated by JavaScript -->
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TradingView Charts Modal -->
+        <div id="chartsModal" class="modal">
+            <div class="modal-backdrop" onclick="closeCharts()"></div>
+            <div class="modal-container extra-large">
+                <div class="modal-header">
+                    <div class="modal-title-section">
+                        <h2 class="modal-title">Live Market Charts</h2>
+                        <p class="modal-subtitle">Real-time TradingView charts with technical analysis</p>
+                    </div>
+                    <button class="modal-close-btn" onclick="closeCharts()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="chart-tabs">
+                        <button class="chart-tab active" data-symbol="FX:EURUSD" onclick="switchChart('EURUSD', this)">EUR/USD</button>
+                        <button class="chart-tab" data-symbol="FX:GBPUSD" onclick="switchChart('GBPUSD', this)">GBP/USD</button>
+                        <button class="chart-tab" data-symbol="FX:USDJPY" onclick="switchChart('USDJPY', this)">USD/JPY</button>
+                        <button class="chart-tab" data-symbol="FX:AUDUSD" onclick="switchChart('AUDUSD', this)">AUD/USD</button>
+                        <button class="chart-tab" data-symbol="FX:USDCAD" onclick="switchChart('USDCAD', this)">USD/CAD</button>
+                        <button class="chart-tab" data-symbol="FX:USDCHF" onclick="switchChart('USDCHF', this)">USD/CHF</button>
+                        <button class="chart-tab" data-symbol="TVC:GOLD" onclick="switchChart('GOLD', this)">Gold</button>
+                        <button class="chart-tab" data-symbol="TVC:DXY" onclick="switchChart('DXY', this)">DXY</button>
+                    </div>
+                    <div id="tradingview_chart" style="height: 600px;"></div>
                 </div>
             </div>
         </div>
@@ -242,8 +313,8 @@
             <div class="modal-container large">
                 <div class="modal-header">
                     <div class="modal-title-section">
-                        <h2 class="modal-title">AI Economic Calendar</h2>
-                        <p class="modal-subtitle">High-Impact Events with AI Predictions & Impact Analysis</p>
+                        <h2 class="modal-title">Economic Calendar</h2>
+                        <p class="modal-subtitle">High-Impact Events & Market-Moving Data</p>
                     </div>
                     <button class="modal-close-btn" onclick="closeCalendar()">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -253,13 +324,67 @@
                     </button>
                 </div>
                 <div class="modal-body">
+                    <div class="calendar-options">
+                        <a href="https://www.forexfactory.com/calendar" target="_blank" class="calendar-external-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            Forex Factory Calendar
+                        </a>
+                        <a href="https://www.investing.com/economic-calendar/" target="_blank" class="calendar-external-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            Investing.com Calendar
+                        </a>
+                        <a href="https://www.myfxbook.com/forex-economic-calendar" target="_blank" class="calendar-external-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            MyFxBook Calendar
+                        </a>
+                    </div>
+                    
                     <div id="calendarContainer" class="calendar-content">
+                        <!-- TradingView Economic Calendar Widget -->
+                        <div class="tradingview-widget-container">
+                            <div class="tradingview-widget-container__widget"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trump Tracker Modal -->
+        <div id="trumpModal" class="modal">
+            <div class="modal-backdrop" onclick="closeTrumpTracker()"></div>
+            <div class="modal-container large">
+                <div class="modal-header trump-header">
+                    <div class="modal-title-section">
+                        <h2 class="modal-title">🦅 Trump Tracker</h2>
+                        <p class="modal-subtitle">Real-time tracking of Trump speeches, news, and market impact</p>
+                    </div>
+                    <button class="modal-close-btn" onclick="closeTrumpTracker()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="trumpContainer" class="trump-content">
                         <div class="loading-container">
                             <div class="loading-spinner-advanced">
                                 <div class="spinner-ring"></div>
                                 <div class="spinner-ring"></div>
                             </div>
-                            <p class="loading-message">Loading economic calendar...</p>
+                            <p class="loading-message">Loading Trump news and updates...</p>
                         </div>
                     </div>
                 </div>

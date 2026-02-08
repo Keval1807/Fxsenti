@@ -19,11 +19,16 @@ const CONFIG = {
         { name: 'Bank of Japan', url: 'https://www.boj.or.jp/en/rss/pressrelease.xml', category: 'JPY', type: 'centralbank', bank: 'BoJ' },
         { name: 'Bank of Canada', url: 'https://www.bankofcanada.ca/feeds/press_releases.xml', category: 'CAD', type: 'centralbank', bank: 'BoC' },
         { name: 'Swiss National Bank', url: 'https://www.snb.ch/en/mmr/rss/rss_feed', category: 'CHF', type: 'centralbank', bank: 'SNB' },
-        { name: 'Reserve Bank of Australia', url: 'https://www.rba.gov.au/rss/rss.xml', category: 'AUD', type: 'centralbank', bank: 'RBA' }
+        { name: 'Reserve Bank of Australia', url: 'https://www.rba.gov.au/rss/rss.xml', category: 'AUD', type: 'centralbank', bank: 'RBA' },
+        
+        // Trump News Feeds
+        { name: 'Reuters Trump', url: 'https://www.reuters.com/rss/donald-trump', category: 'trump', type: 'trump' },
+        { name: 'AP News Politics', url: 'https://feeds.apnews.com/rss/apf-politics', category: 'trump', type: 'trump' },
+        { name: 'BBC News US Politics', url: 'http://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml', category: 'trump', type: 'trump' }
     ],
     PROXY_URL: 'https://api.rss2json.com/v1/api.json?rss_url=',
-    CALENDAR_URL: 'https://www.investing.com/economic-calendar/Service_RSS.ashx?type=high',
-    AUTO_REFRESH_INTERVAL: 60000,
+    AUTO_REFRESH_INTERVAL: 30000, // 30 seconds for real-time updates
+    NOTIFICATION_CHECK_INTERVAL: 15000, // Check for new articles every 15 seconds
     CURRENCIES: ['EUR', 'USD', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF'],
     CURRENCY_FLAGS: {
         'EUR': '🇪🇺',
@@ -48,17 +53,20 @@ const CONFIG = {
 // ===== State Management =====
 let state = {
     newsCache: [],
+    trumpCache: [],
     calendarCache: [],
     marketSummary: {},
     currentFilter: 'all',
     currentCurrency: 'all',
     currentSentiment: 'all',
-    currentConviction: 'all',
     lastUpdateTime: null,
     isLoading: false,
     notificationsEnabled: false,
     mrktAlertsEnabled: false,
-    lastArticleCount: 0
+    lastArticleCount: 0,
+    currentChart: null,
+    currentChartSymbol: 'EURUSD',
+    pushSubscription: null
 };
 
 // ===== Advanced Sentiment Analysis Engine =====
@@ -306,6 +314,32 @@ class SentimentAnalyzer {
         
         return null;
     }
+    
+    static analyzeTrumpImpact(title, description) {
+        const fullText = (title + ' ' + description).toLowerCase();
+        let marketImpact = 'low';
+        
+        // High impact keywords related to Trump
+        const highImpactKeywords = [
+            'tariff', 'trade war', 'china deal', 'mexico wall', 'fed chair',
+            'interest rate', 'tax', 'economic policy', 'trade agreement',
+            'sanctions', 'immigration policy', 'executive order', 'military',
+            'stock market', 'economy', 'unemployment', 'gdp'
+        ];
+        
+        const mediumImpactKeywords = [
+            'tweet', 'statement', 'press conference', 'rally', 'speech',
+            'white house', 'policy', 'announcement', 'meeting'
+        ];
+        
+        const hasHighImpact = highImpactKeywords.some(keyword => fullText.includes(keyword));
+        const hasMediumImpact = mediumImpactKeywords.some(keyword => fullText.includes(keyword));
+        
+        if (hasHighImpact) marketImpact = 'high';
+        else if (hasMediumImpact) marketImpact = 'medium';
+        
+        return marketImpact;
+    }
 }
 
 // ===== AI Market Intelligence Engine =====
@@ -318,7 +352,7 @@ class MarketIntelligence {
             'rate decision', 'rate hike', 'rate cut', 'central bank',
             'nfp', 'non-farm payroll', 'employment', 'cpi', 'inflation',
             'gdp', 'fomc', 'ecb meeting', 'boe decision', 'crisis',
-            'emergency', 'war', 'geopolitical', 'trade war'
+            'emergency', 'war', 'geopolitical', 'trade war', 'trump tariff'
         ];
         
         const mediumImpact = [
@@ -334,23 +368,6 @@ class MarketIntelligence {
         return 'low';
     }
     
-    static determineConviction(article) {
-        const sentiments = Object.values(article.currencySentiment || {});
-        if (sentiments.length < 2) return 'low';
-        
-        // Check for opposing sentiments (high conviction)
-        const hasBullish = sentiments.includes('Bullish');
-        const hasBearish = sentiments.includes('Bearish');
-        
-        if (hasBullish && hasBearish && article.impact === 'high') {
-            return 'high';
-        } else if (hasBullish && hasBearish) {
-            return 'medium';
-        }
-        
-        return 'low';
-    }
-    
     static generateAIAnalysis(article) {
         const analysis = {
             title: article.title,
@@ -359,7 +376,6 @@ class MarketIntelligence {
             technicals: '',
             affectedAssets: [],
             tradingImplications: '',
-            conviction: article.conviction,
             retailPositioning: this.simulateRetailPositioning(article),
             recommendations: []
         };
@@ -432,23 +448,18 @@ class MarketIntelligence {
     }
     
     static simulateRetailPositioning(article) {
-        // Simulate retail positioning based on sentiment (usually contrarian)
         const sentiments = Object.values(article.currencySentiment || {});
         const bullishCount = sentiments.filter(s => s === 'Bullish').length;
         const bearishCount = sentiments.filter(s => s === 'Bearish').length;
         
-        // Retail traders are often wrong at extremes
         let longPercentage = 50;
         
         if (bullishCount > bearishCount) {
-            // Market is bullish, retail might be short (contrarian)
-            longPercentage = 35 + Math.random() * 15; // 35-50%
+            longPercentage = 35 + Math.random() * 15;
         } else if (bearishCount > bullishCount) {
-            // Market is bearish, retail might be long (contrarian)
-            longPercentage = 50 + Math.random() * 15; // 50-65%
+            longPercentage = 50 + Math.random() * 15;
         } else {
-            // Balanced, retail is indecisive
-            longPercentage = 45 + Math.random() * 10; // 45-55%
+            longPercentage = 45 + Math.random() * 10;
         }
         
         return {
@@ -463,7 +474,6 @@ class MarketIntelligence {
             currencies: {}
         };
         
-        // Aggregate sentiment by currency
         CONFIG.CURRENCIES.forEach(currency => {
             const currencyArticles = articles.filter(a => 
                 a.currencySentiment && a.currencySentiment[currency]
@@ -518,7 +528,6 @@ class MarketIntelligence {
             };
         });
         
-        // Generate overview
         const strongCurrencies = Object.entries(summary.currencies)
             .filter(([_, data]) => data.sentiment === 'Bullish')
             .map(([currency]) => currency);
@@ -543,7 +552,6 @@ class MarketIntelligence {
     static findHighConvictionTrades(marketSummary) {
         const trades = [];
         
-        // Find pairs with strong vs weak
         const strongCurrencies = Object.entries(marketSummary.currencies)
             .filter(([_, data]) => data.sentiment === 'Bullish' || data.sentiment === 'Slightly Bullish')
             .sort((a, b) => b[1].strength - a[1].strength);
@@ -552,7 +560,6 @@ class MarketIntelligence {
             .filter(([_, data]) => data.sentiment === 'Bearish' || data.sentiment === 'Slightly Bearish')
             .sort((a, b) => a[1].strength - b[1].strength);
         
-        // Generate high conviction trades
         if (strongCurrencies.length > 0 && weakCurrencies.length > 0) {
             for (let i = 0; i < Math.min(3, strongCurrencies.length); i++) {
                 for (let j = 0; j < Math.min(2, weakCurrencies.length); j++) {
@@ -576,7 +583,7 @@ class MarketIntelligence {
     }
 }
 
-// =====  Article Processing =====
+// ===== Article Processing =====
 class ArticleProcessor {
     static detectCategories(text, feedCategory, feedType) {
         const categories = new Set([feedCategory]);
@@ -590,6 +597,11 @@ class ArticleProcessor {
         
         if (lower.match(/gold|xau|precious metal|silver/i)) {
             categories.add('gold');
+        }
+        
+        // Detect Trump-related content
+        if (lower.match(/trump|donald trump|president trump|potus/i)) {
+            categories.add('trump');
         }
         
         CONFIG.CURRENCIES.forEach(currency => {
@@ -661,9 +673,15 @@ class ArticleProcessor {
             timestamp: new Date(article.publishedAt).getTime()
         };
         
-        // Add AI analysis metadata
         enhancedArticle.impact = MarketIntelligence.analyzeImpact(enhancedArticle);
-        enhancedArticle.conviction = MarketIntelligence.determineConviction(enhancedArticle);
+        
+        // Add Trump-specific analysis
+        if (categories.includes('trump')) {
+            enhancedArticle.trumpImpact = SentimentAnalyzer.analyzeTrumpImpact(
+                article.title,
+                article.description
+            );
+        }
         
         return enhancedArticle;
     }
@@ -675,8 +693,6 @@ class ArticleProcessor {
         return text.substring(0, 300) + (text.length > 300 ? '...' : '');
     }
 }
-
-// ===== (Continuing in next message due to length...) =====
 
 // ===== Push Notifications =====
 class NotificationManager {
@@ -698,15 +714,21 @@ class NotificationManager {
         return false;
     }
     
-    static showNotification(title, body, icon = '📰') {
+    static showNotification(title, body, icon = '📰', tag = 'forexlive-news') {
         if (Notification.permission === 'granted') {
-            new Notification(title, {
+            const notification = new Notification(title, {
                 body: body,
                 icon: icon,
                 badge: icon,
-                tag: 'forexlive-news',
-                requireInteraction: false
+                tag: tag,
+                requireInteraction: false,
+                vibrate: [200, 100, 200]
             });
+            
+            notification.onclick = function() {
+                window.focus();
+                this.close();
+            };
         }
         
         showToast(title, body);
@@ -725,11 +747,85 @@ class NotificationManager {
                 return;
             }
             
+            // Special notification for Trump news
+            if (latestArticle.categories.includes('trump')) {
+                this.showNotification(
+                    '🦅 Trump News Alert',
+                    latestArticle.title.substring(0, 100),
+                    '🦅',
+                    'trump-news'
+                );
+            } else {
+                this.showNotification(
+                    `${diff} New Market Update${diff > 1 ? 's' : ''}`,
+                    latestArticle.title.substring(0, 100)
+                );
+            }
+        }
+    }
+    
+    static checkForTrumpNews(trumpArticles, oldTrumpCount) {
+        if (oldTrumpCount === 0) return;
+        
+        const newCount = trumpArticles.length;
+        if (newCount > oldTrumpCount && state.notificationsEnabled) {
+            const diff = newCount - oldTrumpCount;
+            const latest = trumpArticles[0];
+            
             this.showNotification(
-                `${diff} New Market Update${diff > 1 ? 's' : ''}`,
-                latestArticle.title.substring(0, 100)
+                `🦅 ${diff} New Trump Update${diff > 1 ? 's' : ''}`,
+                latest.title.substring(0, 100),
+                '🦅',
+                'trump-tracker'
             );
         }
+    }
+}
+
+// ===== TradingView Chart Manager =====
+class TradingViewManager {
+    static initChart(symbol = 'EURUSD') {
+        const container = document.getElementById('tradingview_chart');
+        if (!container) return;
+        
+        // Clear existing chart
+        container.innerHTML = '';
+        
+        // Map symbols to TradingView format
+        const symbolMap = {
+            'EURUSD': 'FX:EURUSD',
+            'GBPUSD': 'FX:GBPUSD',
+            'USDJPY': 'FX:USDJPY',
+            'AUDUSD': 'FX:AUDUSD',
+            'USDCAD': 'FX:USDCAD',
+            'USDCHF': 'FX:USDCHF',
+            'GOLD': 'TVC:GOLD',
+            'DXY': 'TVC:DXY'
+        };
+        
+        const tvSymbol = symbolMap[symbol] || 'FX:EURUSD';
+        
+        state.currentChart = new TradingView.widget({
+            autosize: true,
+            symbol: tvSymbol,
+            interval: '15',
+            timezone: 'Etc/UTC',
+            theme: 'dark',
+            style: '1',
+            locale: 'en',
+            toolbar_bg: '#1a1d29',
+            enable_publishing: false,
+            allow_symbol_change: false,
+            container_id: 'tradingview_chart',
+            studies: [
+                'MASimple@tv-basicstudies',
+                'RSI@tv-basicstudies'
+            ],
+            hide_side_toolbar: false,
+            save_image: false
+        });
+        
+        state.currentChartSymbol = symbol;
     }
 }
 
@@ -772,77 +868,6 @@ async function fetchAllNews() {
     return allArticles;
 }
 
-async function fetchEconomicCalendar() {
-    try {
-        const response = await fetch(CONFIG.PROXY_URL + encodeURIComponent(CONFIG.CALENDAR_URL));
-        const data = await response.json();
-        
-        if (data.status === 'ok' && data.items) {
-            return data.items.map(item => {
-                const event = {
-                    title: item.title,
-                    description: ArticleProcessor.cleanDescription(item.description || ''),
-                    link: item.link,
-                    pubDate: item.pubDate
-                };
-                
-                // Add AI analysis to events
-                event.aiAnalysis = generateEventAnalysis(event);
-                event.affectedCurrencies = detectAffectedCurrencies(event.title + ' ' + event.description);
-                event.impact = MarketIntelligence.analyzeImpact(event);
-                
-                return event;
-            });
-        }
-        return [];
-    } catch (error) {
-        console.error('Error fetching calendar:', error);
-        return [];
-    }
-}
-
-function detectAffectedCurrencies(text) {
-    const currencies = [];
-    const lower = text.toLowerCase();
-    
-    const currencyIndicators = {
-        'USD': ['us ', 'united states', 'dollar', 'fed', 'federal reserve'],
-        'EUR': ['euro', 'eurozone', 'ecb', 'european'],
-        'GBP': ['uk ', 'britain', 'pound', 'sterling', 'boe'],
-        'JPY': ['japan', 'yen', 'boj', 'nikkei'],
-        'AUD': ['australia', 'aussie', 'rba'],
-        'CAD': ['canada', 'loonie', 'boc'],
-        'CHF': ['swiss', 'franc', 'snb']
-    };
-    
-    Object.entries(currencyIndicators).forEach(([currency, indicators]) => {
-        if (indicators.some(indicator => lower.includes(indicator))) {
-            currencies.push(currency);
-        }
-    });
-    
-    return currencies;
-}
-
-function generateEventAnalysis(event) {
-    const text = event.title.toLowerCase();
-    let analysis = '';
-    
-    if (text.includes('employment') || text.includes('jobs') || text.includes('nfp')) {
-        analysis = 'Employment data is a key driver of monetary policy expectations. Strong jobs numbers typically support currency strength as they indicate economic health and may lead to hawkish central bank rhetoric.';
-    } else if (text.includes('inflation') || text.includes('cpi') || text.includes('pce')) {
-        analysis = 'Inflation figures directly influence interest rate expectations. Higher-than-expected inflation often leads to currency strength as markets price in potential rate hikes, though extreme readings may spark recession fears.';
-    } else if (text.includes('gdp') || text.includes('growth')) {
-        analysis = 'GDP releases provide comprehensive economic health snapshots. Positive surprises generally support currency appreciation, while disappointments can trigger selloffs, especially if they alter rate expectations.';
-    } else if (text.includes('rate') || text.includes('monetary policy')) {
-        analysis = 'Central bank rate decisions are among the most impactful events. Hawkish surprises (rate hikes or strong forward guidance) typically boost currencies, while dovish moves weaken them. Market positioning ahead of these events creates volatility.';
-    } else {
-        analysis = 'This economic release can influence market sentiment and trading flows. Monitor for surprises relative to consensus expectations, as these often trigger the strongest market reactions.';
-    }
-    
-    return analysis;
-}
-
 // ===== UI Rendering =====
 function renderNewsCard(article) {
     const card = document.createElement('div');
@@ -852,9 +877,15 @@ function renderNewsCard(article) {
                   new Date(article.publishedAt) > new Date(state.lastUpdateTime.getTime() - 300000);
     if (isNew) card.classList.add('new');
     
+    // Add Trump badge if applicable
+    if (article.categories.includes('trump')) {
+        card.classList.add('trump-news');
+    }
+    
     let sourceClass = 'news-source';
     if (article.type === 'centralbank') sourceClass += ' centralbank';
     if (article.type === 'gold') sourceClass += ' gold';
+    if (article.type === 'trump') sourceClass += ' trump';
     
     let sentimentHTML = '';
     const hasCurrencySentiment = Object.keys(article.currencySentiment || {}).length > 0;
@@ -895,6 +926,17 @@ function renderNewsCard(article) {
         `;
     }
     
+    // Add Trump impact badge if applicable
+    let trumpBadgeHTML = '';
+    if (article.categories.includes('trump')) {
+        const impactClass = article.trumpImpact || 'medium';
+        trumpBadgeHTML = `
+            <div class="trump-impact-badge ${impactClass}">
+                🦅 Trump Impact: ${(article.trumpImpact || 'medium').toUpperCase()}
+            </div>
+        `;
+    }
+    
     const tagsHTML = article.categories
         .filter(cat => !CONFIG.CURRENCIES.includes(cat))
         .slice(0, 4)
@@ -920,6 +962,7 @@ function renderNewsCard(article) {
         <h3 class="news-title">${article.title}</h3>
         <p class="news-description">${article.description}</p>
         ${centralBankHTML}
+        ${trumpBadgeHTML}
         ${sentimentHTML}
         <div class="news-tags">${tagsHTML}</div>
         <div class="news-card-actions">
@@ -958,10 +1001,6 @@ function renderNews() {
             if (!hasSentiment) return false;
         }
         
-        if (state.currentConviction !== 'all') {
-            if (article.conviction !== state.currentConviction) return false;
-        }
-        
         if (state.mrktAlertsEnabled && article.impact !== 'high') {
             return false;
         }
@@ -983,6 +1022,65 @@ function renderNews() {
     });
     
     updateStats();
+}
+
+// ===== Trump Tracker Rendering =====
+function renderTrumpTracker() {
+    const container = document.getElementById('trumpContainer');
+    
+    if (state.trumpCache.length === 0) {
+        container.innerHTML = `
+            <div class="loading-container">
+                <p class="loading-message">No Trump news currently available.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    state.trumpCache.forEach(article => {
+        const card = document.createElement('div');
+        card.className = 'trump-news-card';
+        
+        const impactIcon = {
+            'high': '🔴',
+            'medium': '🟡',
+            'low': '🟢'
+        }[article.trumpImpact || 'medium'] || '🟡';
+        
+        const timeAgo = getTimeAgo(new Date(article.publishedAt));
+        
+        card.innerHTML = `
+            <div class="trump-card-header">
+                <span class="trump-source">${article.source}</span>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span class="trump-impact-indicator ${article.trumpImpact || 'medium'}">
+                        ${impactIcon} ${(article.trumpImpact || 'medium').toUpperCase()} IMPACT
+                    </span>
+                    <span class="trump-time">${timeAgo}</span>
+                </div>
+            </div>
+            <h3 class="trump-title">${article.title}</h3>
+            <p class="trump-description">${article.description}</p>
+            ${article.currencySentiment && Object.keys(article.currencySentiment).length > 0 ? `
+                <div class="trump-market-impact">
+                    <div class="impact-label">💱 Affected Currencies:</div>
+                    <div class="sentiment-badges">
+                        ${Object.entries(article.currencySentiment).map(([currency, sentiment]) => {
+                            const icon = sentiment === 'Bullish' ? '📈' : sentiment === 'Bearish' ? '📉' : '➡️';
+                            return `<span class="sentiment-badge ${sentiment.toLowerCase()}">${icon} ${currency}: ${sentiment}</span>`;
+                        }).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            <div class="trump-card-actions">
+                <a href="${article.url}" target="_blank" class="trump-read-more">Read Full Article</a>
+            </div>
+        `;
+        
+        container.appendChild(card);
+    });
 }
 
 // ===== Market Summary Rendering =====
@@ -1079,6 +1177,34 @@ function renderMarketSummary() {
     container.innerHTML = html;
 }
 
+// ===== Economic Calendar Widget =====
+function initEconomicCalendar() {
+    const container = document.getElementById('calendarContainer');
+    
+    // TradingView Economic Calendar Widget
+    container.innerHTML = `
+        <div class="tradingview-widget-container" style="height: 100%; width: 100%;">
+            <div class="tradingview-widget-container__widget" style="height: calc(100% - 32px); width: 100%;"></div>
+        </div>
+    `;
+    
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+        "colorTheme": "dark",
+        "isTransparent": false,
+        "width": "100%",
+        "height": "100%",
+        "locale": "en",
+        "importanceFilter": "0,1"
+    });
+    
+    const widgetContainer = container.querySelector('.tradingview-widget-container__widget');
+    widgetContainer.appendChild(script);
+}
+
 // ===== AI Analysis Modal =====
 function showAIAnalysis(articleIndex) {
     const article = state.newsCache[articleIndex];
@@ -1114,9 +1240,6 @@ function showAIAnalysis(articleIndex) {
                 <h4 class="analysis-section-title">Trading Implications</h4>
             </div>
             <p class="analysis-content">${analysis.tradingImplications}</p>
-            <div style="margin-top: 1rem;">
-                <span class="conviction-badge ${analysis.conviction}">${analysis.conviction.toUpperCase()} CONVICTION</span>
-            </div>
         </div>
         
         <div class="analysis-section">
@@ -1172,68 +1295,15 @@ function closeAIAnalysis() {
     document.getElementById('aiAnalysisModal').classList.remove('active');
 }
 
-// ===== Calendar Rendering =====
-function renderCalendar() {
-    const container = document.getElementById('calendarContainer');
-    
-    if (state.calendarCache.length === 0) {
-        container.innerHTML = `
-            <div class="loading-container">
-                <p class="loading-message">No high-impact events currently available.</p>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = '';
-    
-    state.calendarCache.forEach(event => {
-        const eventCard = document.createElement('div');
-        eventCard.className = 'calendar-event';
-        
-        const impactIcon = {
-            'high': '🔴',
-            'medium': '🟡',
-            'low': '🟢'
-        }[event.impact] || '⚪';
-        
-        eventCard.innerHTML = `
-            <div class="event-impact-indicator">
-                <span class="impact-badge ${event.impact}">${impactIcon} ${event.impact.toUpperCase()} IMPACT</span>
-            </div>
-            <div class="event-time">${new Date(event.pubDate).toLocaleString()}</div>
-            <h4 class="event-title">${event.title}</h4>
-            ${event.affectedCurrencies.length > 0 ? `
-                <div class="event-affected-currencies">
-                    ${event.affectedCurrencies.map(c => 
-                        `<span class="affected-currency-badge">${CONFIG.CURRENCY_FLAGS[c] || ''} ${c}</span>`
-                    ).join('')}
-                </div>
-            ` : ''}
-            <p class="event-description">${event.description}</p>
-            <div class="event-analysis">
-                <div class="analysis-header-small">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                        <path d="M2 17l10 5 10-5"></path>
-                        <path d="M2 12l10 5 10-5"></path>
-                    </svg>
-                    AI Analysis
-                </div>
-                <p class="analysis-text">${event.aiAnalysis}</p>
-            </div>
-            <a href="${event.link}" target="_blank" class="read-more">View Full Details</a>
-        `;
-        container.appendChild(eventCard);
-    });
-}
-
 // ===== Stats & Status Updates =====
 function updateStats() {
     document.getElementById('totalArticles').textContent = state.newsCache.length;
     
     const highImpactCount = state.newsCache.filter(a => a.impact === 'high').length;
     document.getElementById('highImpactCount').textContent = highImpactCount;
+    
+    const trumpCount = state.trumpCache.length;
+    document.getElementById('trumpCount').textContent = trumpCount;
     
     if (state.lastUpdateTime) {
         document.getElementById('lastUpdate').textContent = state.lastUpdateTime.toLocaleTimeString();
@@ -1270,17 +1340,24 @@ async function loadAllNews() {
     
     try {
         const oldCount = state.newsCache.length;
+        const oldTrumpCount = state.trumpCache.length;
+        
         const articles = await fetchAllNews();
         
         if (articles.length > 0) {
             state.newsCache = articles;
+            
+            // Separate Trump news
+            state.trumpCache = articles.filter(a => a.categories.includes('trump'));
+            
             state.lastUpdateTime = new Date();
             state.marketSummary = MarketIntelligence.generateMarketSummary(articles);
             renderNews();
             updateStatus(`Loaded ${articles.length} articles`, 'success');
             
-            if (state.notificationsEnabled && oldCount > 0) {
+            if (state.notificationsEnabled) {
                 NotificationManager.checkForNewArticles(articles, oldCount);
+                NotificationManager.checkForTrumpNews(state.trumpCache, oldTrumpCount);
             }
         } else {
             updateStatus('No articles found', 'error');
@@ -1292,32 +1369,6 @@ async function loadAllNews() {
         state.isLoading = false;
         refreshBtn.disabled = false;
         refreshBtn.classList.remove('loading');
-    }
-}
-
-async function loadCalendarData() {
-    const container = document.getElementById('calendarContainer');
-    container.innerHTML = `
-        <div class="loading-container">
-            <div class="loading-spinner-advanced">
-                <div class="spinner-ring"></div>
-                <div class="spinner-ring"></div>
-            </div>
-            <p class="loading-message">Loading economic calendar...</p>
-        </div>
-    `;
-    
-    try {
-        const events = await fetchEconomicCalendar();
-        state.calendarCache = events;
-        renderCalendar();
-    } catch (error) {
-        console.error('Error loading calendar:', error);
-        container.innerHTML = `
-            <div class="loading-container">
-                <p class="loading-message" style="color: var(--accent-danger);">Failed to load calendar data.</p>
-            </div>
-        `;
     }
 }
 
@@ -1333,7 +1384,6 @@ function setSourceFilter(filter) {
 function applyFilters() {
     state.currentCurrency = document.getElementById('currencyFilter').value;
     state.currentSentiment = document.getElementById('sentimentFilter').value;
-    state.currentConviction = document.getElementById('convictionFilter').value;
     renderNews();
 }
 
@@ -1345,7 +1395,7 @@ async function toggleNotifications() {
             state.notificationsEnabled = true;
             document.getElementById('notifBadge').textContent = 'ON';
             document.getElementById('notifBadge').classList.add('active');
-            showToast('Notifications Enabled', 'You will receive alerts for new market updates');
+            showToast('Push Notifications Enabled', 'You will receive real-time alerts for market updates');
         } else {
             showToast('Permission Denied', 'Please enable notifications in browser settings');
         }
@@ -1353,7 +1403,7 @@ async function toggleNotifications() {
         state.notificationsEnabled = false;
         document.getElementById('notifBadge').textContent = 'OFF';
         document.getElementById('notifBadge').classList.remove('active');
-        showToast('Notifications Disabled', 'Alerts turned off');
+        showToast('Push Notifications Disabled', 'Alerts turned off');
     }
 }
 
@@ -1377,7 +1427,7 @@ function toggleMRKTAlerts() {
 // ===== Modal Functions =====
 function showCalendar() {
     document.getElementById('calendarModal').classList.add('active');
-    loadCalendarData();
+    initEconomicCalendar();
 }
 
 function closeCalendar() {
@@ -1391,6 +1441,35 @@ function showMarketSummary() {
 
 function closeMarketSummary() {
     document.getElementById('marketSummaryModal').classList.remove('active');
+}
+
+function showCharts() {
+    document.getElementById('chartsModal').classList.add('active');
+    TradingViewManager.initChart(state.currentChartSymbol);
+}
+
+function closeCharts() {
+    document.getElementById('chartsModal').classList.remove('active');
+}
+
+function switchChart(symbol, button) {
+    // Update active tab
+    document.querySelectorAll('.chart-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    button.classList.add('active');
+    
+    // Load new chart
+    TradingViewManager.initChart(symbol);
+}
+
+function showTrumpTracker() {
+    document.getElementById('trumpModal').classList.add('active');
+    renderTrumpTracker();
+}
+
+function closeTrumpTracker() {
+    document.getElementById('trumpModal').classList.remove('active');
 }
 
 function showToast(title, message) {
@@ -1414,10 +1493,23 @@ function getTimeAgo(date) {
     return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+// ===== Real-time Update Loop =====
+function startRealTimeUpdates() {
+    // Auto-refresh news
+    setInterval(loadAllNews, CONFIG.AUTO_REFRESH_INTERVAL);
+    
+    // Check for new articles more frequently
+    setInterval(() => {
+        if (state.notificationsEnabled && !state.isLoading) {
+            loadAllNews();
+        }
+    }, CONFIG.NOTIFICATION_CHECK_INTERVAL);
+}
+
 // ===== Initialization =====
 document.addEventListener('DOMContentLoaded', () => {
     loadAllNews();
-    setInterval(loadAllNews, CONFIG.AUTO_REFRESH_INTERVAL);
+    startRealTimeUpdates();
     
     // Close modals on backdrop click
     window.addEventListener('click', (e) => {
@@ -1425,9 +1517,14 @@ document.addEventListener('DOMContentLoaded', () => {
             closeCalendar();
             closeMarketSummary();
             closeAIAnalysis();
+            closeCharts();
+            closeTrumpTracker();
         }
     });
     
-    console.log('ForexLive Intelligence with AI Analysis initialized successfully');
+    console.log('ForexLive Intelligence with Real-time Features initialized successfully');
+    console.log('🦅 Trump Tracker: Enabled');
+    console.log('📊 TradingView Charts: Enabled');
+    console.log('📈 Currency Strength Meter: Enabled');
+    console.log('🔔 Push Notifications: Ready');
 });
-
