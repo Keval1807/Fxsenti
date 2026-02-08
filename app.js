@@ -1,5 +1,9 @@
 // ===== Configuration =====
 const CONFIG = {
+    // Google Gemini API Configuration
+    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY_HERE', // Replace with your actual API key from https://makersuite.google.com/app/apikey
+    GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+    
     RSS_FEEDS: [
         // Forex News Feeds
         { name: 'FXStreet', url: 'https://www.fxstreet.com/rss/news', category: 'forex', type: 'forex' },
@@ -49,6 +53,52 @@ const CONFIG = {
         'CHF': 'Swiss Franc'
     }
 };
+
+// ===== Google Gemini API Helper =====
+async function callGeminiAPI(prompt) {
+    if (CONFIG.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+        console.warn('Gemini API key not configured. Using fallback analysis.');
+        throw new Error('API key not configured');
+    }
+    
+    try {
+        const response = await fetch(`${CONFIG.GEMINI_API_URL}?key=${CONFIG.GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 1024,
+                }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Gemini API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+            return data.candidates[0].content.parts[0].text;
+        }
+        
+        throw new Error('Invalid response from Gemini API');
+        
+    } catch (error) {
+        console.error('Gemini API Error:', error);
+        throw error;
+    }
+}
 
 // ===== State Management =====
 let state = {
@@ -378,7 +428,7 @@ class MarketIntelligence {
                     <div class="spinner-ring"></div>
                 </div>
                 <p class="loading-message">AI is analyzing market data...</p>
-                <p class="loading-submessage">Generating professional insights</p>
+                <p class="loading-submessage">Powered by Google Gemini</p>
             </div>
         `;
         
@@ -399,7 +449,7 @@ Bullish Currencies: ${bullishCurrencies.join(', ') || 'None'}
 Bearish Currencies: ${bearishCurrencies.join(', ') || 'None'}
 ${article.goldSentiment ? `Gold Sentiment: ${article.goldSentiment}` : ''}
 
-Provide a comprehensive analysis in the following JSON format:
+Provide a comprehensive analysis in the following JSON format (respond ONLY with valid JSON, no markdown formatting):
 {
     "summary": "Brief 2-3 sentence overview of the market impact",
     "fundamentals": "Detailed fundamental analysis explaining the underlying economic drivers (3-4 sentences)",
@@ -423,30 +473,34 @@ Provide a comprehensive analysis in the following JSON format:
 
 Be specific, actionable, and professional. Focus on real trading opportunities.`;
 
-            // Call Puter AI
-            const aiResponse = await puter.ai.chat(prompt);
+            // Call Gemini API
+            const aiResponse = await callGeminiAPI(prompt);
             
             // Parse AI response
             let analysis;
             try {
+                // Remove markdown code blocks if present
+                let cleanedResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                
                 // Try to extract JSON from response
-                const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     analysis = JSON.parse(jsonMatch[0]);
                 } else {
                     throw new Error('No JSON found in response');
                 }
             } catch (parseError) {
+                console.error('JSON Parse Error:', parseError);
                 // Fallback if JSON parsing fails
                 analysis = {
                     summary: aiResponse.substring(0, 300),
-                    fundamentals: "AI analysis is processing. The market is reacting to the news with notable volatility.",
-                    technicals: "Technical indicators suggest monitoring key support and resistance levels.",
-                    tradingSetups: ["Monitor for clear directional breakout", "Wait for confirmation before entry"],
-                    riskFactors: ["Market volatility", "News-driven uncertainty", "Multiple conflicting signals"],
+                    fundamentals: "The market is reacting to this news with notable attention. Economic fundamentals are being reassessed based on the new information.",
+                    technicals: "Technical indicators suggest monitoring key support and resistance levels for potential trading opportunities.",
+                    tradingSetups: ["Monitor for clear directional breakout with volume confirmation", "Wait for pullback to key support/resistance before entry"],
+                    riskFactors: ["Market volatility during news events", "Potential for rapid reversals", "Multiple conflicting signals"],
                     timeHorizon: "Short-term (1-3 days)",
                     confidenceLevel: "Medium",
-                    keyLevels: { support: ["Recent low"], resistance: ["Recent high"] }
+                    keyLevels: { support: ["Recent session low", "Weekly support"], resistance: ["Recent session high", "Weekly resistance"] }
                 };
             }
             
@@ -459,24 +513,29 @@ Be specific, actionable, and professional. Focus on real trading opportunities.`
             console.error('AI Analysis Error:', error);
             
             // Fallback analysis
+            const currencies = Object.keys(article.currencySentiment || {});
+            const sentiments = Object.entries(article.currencySentiment || {});
+            const bullishCurrencies = sentiments.filter(([_, s]) => s === 'Bullish').map(([c]) => c);
+            const bearishCurrencies = sentiments.filter(([_, s]) => s === 'Bearish').map(([c]) => c);
+            
             return {
-                summary: `Market is reacting to ${article.title}. ${bullishCurrencies.length > 0 ? bullishCurrencies.join(', ') + ' showing strength' : ''} ${bearishCurrencies.length > 0 ? bearishCurrencies.join(', ') + ' under pressure' : ''}.`,
-                fundamentals: "This news event is influencing market sentiment. Traders should monitor economic data releases and central bank commentary for further direction.",
-                technicals: "Key support and resistance levels should be monitored. Look for confirmation through volume and momentum indicators before entering positions.",
+                summary: `Market is reacting to ${article.title}. ${bullishCurrencies.length > 0 ? bullishCurrencies.join(', ') + ' showing strength. ' : ''} ${bearishCurrencies.length > 0 ? bearishCurrencies.join(', ') + ' under pressure.' : ''}`,
+                fundamentals: "This news event is influencing market sentiment. Traders should monitor economic data releases and central bank commentary for further direction. The fundamental impact will depend on follow-through and confirmation from additional data points.",
+                technicals: "Key support and resistance levels should be monitored closely. Look for confirmation through volume and momentum indicators before entering positions. Price action near these levels will be critical for determining short-term direction.",
                 tradingSetups: [
-                    "Wait for clear breakout confirmation with volume",
-                    "Consider counter-trend setups at extreme levels"
+                    "Wait for clear breakout confirmation with increased volume before entering directional trades",
+                    "Consider counter-trend setups at extreme levels with tight risk management"
                 ],
                 riskFactors: [
-                    "High market volatility during news events",
-                    "Potential for rapid reversals",
-                    "Conflicting fundamental signals"
+                    "High market volatility during and after major news events",
+                    "Potential for rapid reversals if sentiment shifts",
+                    "Conflicting fundamental signals requiring careful position sizing"
                 ],
                 timeHorizon: "Short-term (1-3 days)",
                 confidenceLevel: "Medium",
                 keyLevels: {
-                    support: ["Previous session low", "Weekly support"],
-                    resistance: ["Previous session high", "Weekly resistance"]
+                    support: ["Previous session low", "Weekly support zone", "Psychological round number"],
+                    resistance: ["Previous session high", "Weekly resistance zone", "Psychological round number"]
                 },
                 retailPositioning: this.simulateRetailPositioning(article)
             };
@@ -585,10 +644,10 @@ Provide a 2-3 sentence professional market overview focusing on:
 2. Key trading opportunities
 3. Risk factors to watch
 
-Keep it concise and actionable for traders.`;
+Keep it concise and actionable for traders. Respond with ONLY the overview text, no additional formatting.`;
 
-            const aiOverview = await puter.ai.chat(prompt);
-            summary.overview = aiOverview;
+            const aiOverview = await callGeminiAPI(prompt);
+            summary.overview = aiOverview.trim();
             
         } catch (error) {
             console.error('AI Overview Error:', error);
@@ -1642,6 +1701,46 @@ function getTimeAgo(date) {
     return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+// ===== API Key Management =====
+function checkGeminiApiKey() {
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey && storedKey !== 'YOUR_GEMINI_API_KEY_HERE') {
+        CONFIG.GEMINI_API_KEY = storedKey;
+        return true;
+    }
+    return false;
+}
+
+function saveGeminiApiKey() {
+    const input = document.getElementById('geminiApiKeyInput');
+    const apiKey = input.value.trim();
+    
+    if (!apiKey) {
+        showToast('Error', 'Please enter a valid API key');
+        return;
+    }
+    
+    // Validate API key format (Gemini keys start with 'AIza')
+    if (!apiKey.startsWith('AIza')) {
+        showToast('Warning', 'This doesn\'t look like a valid Gemini API key. Gemini keys typically start with "AIza"');
+    }
+    
+    localStorage.setItem('gemini_api_key', apiKey);
+    CONFIG.GEMINI_API_KEY = apiKey;
+    
+    document.getElementById('apiKeyModal').classList.remove('active');
+    showToast('Success', 'API key saved! AI features are now enabled.');
+}
+
+function skipApiKeySetup() {
+    document.getElementById('apiKeyModal').classList.remove('active');
+    showToast('AI Disabled', 'You can enable AI features later from Settings');
+}
+
+function showApiKeySetup() {
+    document.getElementById('apiKeyModal').classList.add('active');
+}
+
 // ===== Real-time Update Loop =====
 function startRealTimeUpdates() {
     // Auto-refresh news
@@ -1657,6 +1756,14 @@ function startRealTimeUpdates() {
 
 // ===== Initialization =====
 document.addEventListener('DOMContentLoaded', () => {
+    // Check for Gemini API key
+    if (!checkGeminiApiKey()) {
+        // Show API key setup modal after a brief delay
+        setTimeout(() => {
+            showApiKeySetup();
+        }, 1000);
+    }
+    
     loadAllNews();
     startRealTimeUpdates();
     
@@ -1672,6 +1779,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     console.log('ForexLive Intelligence with Real-time Features initialized successfully');
+    console.log('🧠 AI Powered by: Google Gemini');
     console.log('🦅 Trump Tracker: Enabled');
     console.log('📊 TradingView Charts: Enabled');
     console.log('📈 Currency Strength Meter: Enabled');

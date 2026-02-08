@@ -10,8 +10,6 @@
     <link rel="stylesheet" href="styles.css">
     <!-- TradingView Widget Script -->
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-    <!-- Puter.js for AI Integration -->
-    <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
     <!-- Animated Background -->
@@ -23,6 +21,50 @@
     </div>
     
     <div class="main-container">
+        <!-- API Key Setup Modal -->
+        <div id="apiKeyModal" class="modal api-key-modal">
+            <div class="modal-backdrop"></div>
+            <div class="modal-container api-key-container">
+                <div class="modal-header">
+                    <div class="modal-title-section">
+                        <h2 class="modal-title">🔑 Setup Google Gemini API</h2>
+                        <p class="modal-subtitle">Required for AI-powered market analysis</p>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="api-key-setup">
+                        <p class="setup-instruction">To enable AI analysis features, you need a free Google Gemini API key:</p>
+                        <ol class="setup-steps">
+                            <li>Visit <a href="https://makersuite.google.com/app/apikey" target="_blank" class="setup-link">Google AI Studio</a></li>
+                            <li>Sign in with your Google account</li>
+                            <li>Click "Get API Key" or "Create API Key"</li>
+                            <li>Copy your API key and paste it below</li>
+                        </ol>
+                        <div class="api-key-input-group">
+                            <input 
+                                type="text" 
+                                id="geminiApiKeyInput" 
+                                class="api-key-input" 
+                                placeholder="Enter your Gemini API key here..."
+                            />
+                            <button class="btn-save-api-key" onclick="saveGeminiApiKey()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path>
+                                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                    <polyline points="7 3 7 8 15 8"></polyline>
+                                </svg>
+                                Save API Key
+                            </button>
+                        </div>
+                        <div class="api-key-note">
+                            <strong>Note:</strong> Your API key is stored locally in your browser and never sent to any server except Google's Gemini API.
+                        </div>
+                        <button class="btn-skip" onclick="skipApiKeySetup()">Skip for now (AI features disabled)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Header -->
         <header class="main-header">
             <div class="header-top">

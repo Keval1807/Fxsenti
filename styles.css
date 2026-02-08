@@ -760,6 +760,10 @@ body {
     pointer-events: all;
 }
 
+.modal.api-key-modal.active {
+    z-index: 2000;
+}
+
 .modal-backdrop {
     position: absolute;
     inset: 0;
@@ -785,12 +789,129 @@ body {
     transform: scale(1);
 }
 
+.modal-container.api-key-container {
+    max-width: 600px;
+}
+
 .modal-container.large {
     max-width: 1200px;
 }
 
 .modal-container.extra-large {
     max-width: 1400px;
+}
+
+.api-key-setup {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.setup-instruction {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.setup-steps {
+    padding-left: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.setup-steps li {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.setup-link {
+    color: var(--accent-primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--transition-fast);
+}
+
+.setup-link:hover {
+    color: var(--accent-secondary);
+    text-decoration: underline;
+}
+
+.api-key-input-group {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.api-key-input {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-family: 'Space Mono', monospace;
+    transition: all var(--transition-normal);
+}
+
+.api-key-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-save-api-key {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    white-space: nowrap;
+}
+
+.btn-save-api-key:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.api-key-note {
+    padding: 1rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.api-key-note strong {
+    color: var(--accent-primary);
+}
+
+.btn-skip {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.btn-skip:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
 }
 
 .modal-header {
