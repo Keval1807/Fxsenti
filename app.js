@@ -1,16 +1,9 @@
 // ===== Configuration =====
 const CONFIG = {
-    // Puter.ai Configuration - FREE, NO API KEY NEEDED!
-    USE_PUTER_AI: true,
-    PUTER_AI_MODEL: 'claude-3-5-sonnet', // Puter provides free Claude access!
-    
-    // Market Hours Configuration
-    MARKET_SESSIONS: {
-        sydney: { open: 22, close: 7, timezone: 'AEDT', color: '#10b981' },
-        tokyo: { open: 0, close: 9, timezone: 'JST', color: '#ec4899' },
-        london: { open: 8, close: 17, timezone: 'GMT', color: '#3b82f6' },
-        newyork: { open: 13, close: 22, timezone: 'EST', color: '#10b981' }
-    },
+    // Google Gemini API Configuration
+    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY_HERE', // Replace with your actual API key from https://makersuite.google.com/app/apikey
+    GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+    GEMINI_VISION_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent',
     
     // AI Settings
     USE_ADVANCED_AI: true,
@@ -67,601 +60,106 @@ const CONFIG = {
     }
 };
 
-// ===== REAL AI Engine - Uses Hugging Face Free API =====
-class RealAI {
-    static async analyze(article, bullishCurrencies, bearishCurrencies) {
-        console.log('🤖 Puter.ai analyzing:', article.title);
-        
-        try {
-            // Create comprehensive prompt for REAL AI analysis
-            const prompt = `You are an elite forex market analyst. Analyze this breaking news and provide detailed, intelligent analysis.
-
-NEWS ARTICLE:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Title: ${article.title}
-Description: ${article.description}
-Source: ${article.source}
-Published: ${new Date(article.publishedAt).toLocaleString()}
-Impact Level: ${article.impact.toUpperCase()}
-Central Banks: ${article.centralBanks?.join(', ') || 'None'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-DETECTED SENTIMENT:
-Bullish: ${bullishCurrencies.join(', ') || 'None'}
-Bearish: ${bearishCurrencies.join(', ') || 'None'}
-
-YOUR TASK:
-Provide professional forex analysis in VALID JSON format. Think deeply about how this news affects currencies.
-
-ANALYZE ALL MAJOR CURRENCIES: USD, EUR, GBP, JPY, AUD, CAD, CHF, NZD, and GOLD
-
-RESPOND WITH VALID JSON ONLY (no markdown, no backticks):
-{
-    "summary": "3-4 sentence summary explaining what happened and immediate market impact",
-    
-    "fundamentalAnalysis": "5-6 sentences explaining: economic significance, monetary policy impact, interest rate differentials, currency winners/losers and WHY, market positioning implications",
-    
-    "technicalOutlook": "4-5 sentences: expected price action, key levels, technical indicators, chart patterns, specific pip predictions where possible",
-    
-    "affectedCurrencies": [
-        {
-            "currency": "USD",
-            "impact": "Bullish/Bearish/Neutral",
-            "pipPrediction": "Specific range like +80-140 pips or -60-100 pips",
-            "pros": [
-                "Detailed pro #1 with specific reasoning and numbers",
-                "Detailed pro #2 explaining mechanism",
-                "Detailed pro #3 with market implications"
-            ],
-            "cons": [
-                "Detailed con #1 with specific risks",
-                "Detailed con #2 with numbers",
-                "Detailed con #3 with timing"
-            ],
-            "outlook": "4-5 sentence detailed forecast with specific levels and timeframes"
-        }
-    ],
-    
-    "tradingRecommendations": [
-        {
-            "pair": "EUR/USD",
-            "direction": "Long/Short",
-            "entry": "Specific entry strategy",
-            "stop": "Specific stop level",
-            "target": "Specific target levels",
-            "reasoning": "Why this trade makes sense"
-        }
-    ],
-    
-    "keyLevels": {
-        "support": ["Specific level with context", "Another level"],
-        "resistance": ["Specific level with context", "Another level"]
-    },
-    
-    "riskFactors": [
-        "Specific risk #1 with timing",
-        "Specific risk #2",
-        "Specific risk #3"
-    ],
-    
-    "timeHorizon": "Intraday/Short-term/Medium-term",
-    "confidenceLevel": "High/Medium/Low with percentage",
-    "marketContext": "3-4 sentences about broader market conditions"
-}
-
-CRITICAL: Be SPECIFIC. Give actual pip predictions, actual price levels, actual timeframes. Don't be vague.`;
-
-            console.log('📤 Sending to Puter.ai...');
-            
-            // Call Puter.ai - it's FREE and has Claude built-in!
-            const response = await puter.ai.chat(prompt);
-            
-            console.log('📥 Puter.ai raw response:', response);
-            
-            // Parse the response
-            let analysis;
-            try {
-                // Clean the response
-                let cleanResponse = response.trim();
-                
-                // Remove markdown code blocks if present
-                cleanResponse = cleanResponse.replace(/```json\n?/gi, '').replace(/```\n?/g, '');
-                
-                // Try to find JSON
-                const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    analysis = JSON.parse(jsonMatch[0]);
-                    console.log('✅ Successfully parsed Puter.ai analysis:', analysis);
-                } else {
-                    throw new Error('No JSON found in response');
-                }
-            } catch (parseError) {
-                console.warn('⚠️ JSON parse failed, using smart fallback:', parseError);
-                // Return the raw text with intelligent structure
-                analysis = this.createIntelligentFallback(response, article, bullishCurrencies, bearishCurrencies);
-            }
-            
-            // Ensure all currencies are analyzed
-            if (!analysis.affectedCurrencies || analysis.affectedCurrencies.length === 0) {
-                analysis.affectedCurrencies = await this.analyzeAllCurrencies(article, bullishCurrencies, bearishCurrencies);
-            }
-            
-            // Add retail positioning
-            analysis.retailPositioning = {
-                long: Math.round(45 + Math.random() * 20),
-                short: Math.round(35 + Math.random() * 20)
-            };
-            
-            return analysis;
-            
-        } catch (error) {
-            console.error('❌ Puter.ai Error:', error);
-            console.log('🔄 Using intelligent backup analysis...');
-            return await this.intelligentBackupAnalysis(article, bullishCurrencies, bearishCurrencies);
-        }
+// ===== Google Gemini API Helper =====
+async function callGeminiAPI(prompt, useHistory = true) {
+    if (CONFIG.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+        console.warn('⚠️ Gemini API key not configured. Using fallback analysis.');
+        throw new Error('API key not configured');
     }
     
-    static createIntelligentFallback(aiText, article, bullishCurrencies, bearishCurrencies) {
-        // Extract intelligent insights from AI text even if not JSON
-        return {
-            summary: aiText.substring(0, 400) || `${article.title} - This ${article.impact} impact news affects ${bullishCurrencies.join(', ')} positively and ${bearishCurrencies.join(', ')} negatively.`,
-            fundamentalAnalysis: aiText.substring(400, 900) || this.generateIntelligentFundamentals(article),
-            technicalOutlook: aiText.substring(900, 1300) || this.generateIntelligentTechnicals(article, bullishCurrencies, bearishCurrencies),
-            affectedCurrencies: this.analyzeAllCurrenciesSync(article, bullishCurrencies, bearishCurrencies),
-            tradingRecommendations: this.generateIntelligentTrades(article, bullishCurrencies, bearishCurrencies),
-            keyLevels: this.generateKeyLevels(),
-            riskFactors: this.generateIntelligentRisks(article),
-            timeHorizon: article.impact === 'high' ? 'Short-term (1-3 days)' : 'Medium-term (1-2 weeks)',
-            confidenceLevel: 'Medium-High (65-75%)',
-            marketContext: this.generateMarketContext(article),
-            retailPositioning: { long: Math.round(45 + Math.random() * 20), short: Math.round(35 + Math.random() * 20) }
-        };
-    }
-    
-    static async analyzeAllCurrencies(article, bullishCurrencies, bearishCurrencies) {
-        const allCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'GOLD'];
-        const currencies = [];
+    try {
+        // Build conversation with history for context
+        const contents = [];
         
-        for (const curr of allCurrencies) {
-            const isBullish = bullishCurrencies.includes(curr);
-            const isBearish = bearishCurrencies.includes(curr);
-            const text = (article.title + ' ' + article.description).toLowerCase();
-            const mentioned = text.includes(curr.toLowerCase()) || isBullish || isBearish;
-            
-            if (mentioned || curr === 'USD') { // Always include USD
-                currencies.push({
-                    currency: curr,
-                    impact: isBullish ? 'Bullish' : isBearish ? 'Bearish' : 'Neutral',
-                    pipPrediction: this.calculateSmartPipPrediction(article, curr, isBullish, isBearish),
-                    pros: this.generateSmartPros(curr, article, isBullish),
-                    cons: this.generateSmartCons(curr, article, isBearish),
-                    outlook: this.generateSmartOutlook(curr, article, isBullish, isBearish)
+        if (useHistory && CONFIG.CONVERSATION_HISTORY && state.conversationHistory.length > 0) {
+            // Add previous conversation turns
+            state.conversationHistory.forEach(turn => {
+                contents.push({
+                    role: turn.role,
+                    parts: [{ text: turn.text }]
                 });
+            });
+        }
+        
+        // Add current prompt
+        contents.push({
+            role: 'user',
+            parts: [{ text: prompt }]
+        });
+        
+        console.log('🤖 Calling Gemini API with', contents.length, 'conversation turns');
+        
+        const response = await fetch(`${CONFIG.GEMINI_API_URL}?key=${CONFIG.GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: contents,
+                generationConfig: {
+                    temperature: 0.9,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 2048,
+                },
+                safetySettings: [
+                    {
+                        category: "HARM_CATEGORY_HARASSMENT",
+                        threshold: "BLOCK_NONE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_HATE_SPEECH",
+                        threshold: "BLOCK_NONE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        threshold: "BLOCK_NONE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        threshold: "BLOCK_NONE"
+                    }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ Gemini API Error Response:', errorData);
+            throw new Error(`Gemini API error: ${response.status} - ${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Gemini API Response:', data);
+        
+        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+            const aiText = data.candidates[0].content.parts[0].text;
+            
+            // Store in conversation history
+            if (useHistory && CONFIG.CONVERSATION_HISTORY) {
+                state.conversationHistory.push({
+                    role: 'user',
+                    text: prompt
+                });
+                state.conversationHistory.push({
+                    role: 'model',
+                    text: aiText
+                });
+                
+                // Keep only recent history
+                if (state.conversationHistory.length > CONFIG.MAX_HISTORY_LENGTH * 2) {
+                    state.conversationHistory = state.conversationHistory.slice(-CONFIG.MAX_HISTORY_LENGTH * 2);
+                }
             }
-        }
-        
-        return currencies;
-    }
-    
-    static analyzeAllCurrenciesSync(article, bullishCurrencies, bearishCurrencies) {
-        const allCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'GOLD'];
-        const currencies = [];
-        
-        allCurrencies.forEach(curr => {
-            const isBullish = bullishCurrencies.includes(curr);
-            const isBearish = bearishCurrencies.includes(curr);
             
-            currencies.push({
-                currency: curr,
-                impact: isBullish ? 'Bullish' : isBearish ? 'Bearish' : 'Neutral',
-                pipPrediction: this.calculateSmartPipPrediction(article, curr, isBullish, isBearish),
-                pros: this.generateSmartPros(curr, article, isBullish),
-                cons: this.generateSmartCons(curr, article, isBearish),
-                outlook: this.generateSmartOutlook(curr, article, isBullish, isBearish)
-            });
-        });
-        
-        return currencies;
-    }
-    
-    static calculateSmartPipPrediction(article, currency, isBullish, isBearish) {
-        if (currency === 'GOLD') {
-            const range = article.impact === 'high' ? 25 : 15;
-            if (isBullish) return `+$${range}-$${range + 15} per ounce`;
-            if (isBearish) return `-$${range}-$${range + 15} per ounce`;
-            return `±$${range/2}-$${range} per ounce`;
+            return aiText;
         }
         
-        const baseRange = article.impact === 'high' ? 90 : article.impact === 'medium' ? 55 : 35;
-        const variance = Math.floor(Math.random() * 30);
-        const low = baseRange + variance;
-        const high = low + 50 + Math.floor(Math.random() * 40);
+        throw new Error('Invalid response structure from Gemini API');
         
-        if (isBullish) return `+${low}-${high} pips (Strong upside)`;
-        if (isBearish) return `-${low}-${high} pips (Downside pressure)`;
-        return `±${Math.floor(low/2)}-${low} pips (Range-bound)`;
-    }
-    
-    static generateSmartPros(currency, article, isBullish) {
-        const pros = [];
-        const source = article.source;
-        const title = article.title.substring(0, 100);
-        
-        if (isBullish) {
-            pros.push(`${source} reports positive fundamental developments supporting ${currency} - ${title} creates bullish momentum through improved economic outlook and market confidence`);
-            pros.push(`Technical indicators showing strong bullish signals for ${currency} pairs with RSI divergence and MACD crossover suggesting sustained upward pressure over next 1-3 trading sessions`);
-            pros.push(`Interest rate expectations favoring ${currency} as central bank policy trajectory supports higher yields, attracting international capital flows and carry trade positioning`);
-        } else {
-            pros.push(`Oversold technical conditions on ${currency} pairs present tactical counter-trend opportunities - RSI below 30 on multiple timeframes suggests potential mean-reversion bounce`);
-            pros.push(`Major institutional support levels nearby at key Fibonacci retracements may attract value buyers and slow pace of ${currency} decline`);
-            pros.push(`Market sentiment for ${currency} showing early signs of stabilization which could benefit currency if broader risk appetite improves or economic data surprises positively`);
-        }
-        
-        return pros;
-    }
-    
-    static generateSmartCons(currency, article, isBearish) {
-        const cons = [];
-        
-        if (isBearish) {
-            cons.push(`${article.title.substring(0, 90)} creates significant headwinds for ${currency} through deteriorating fundamentals, negative market sentiment, and capital outflow pressures`);
-            cons.push(`Technical breakdown below critical support at key moving averages suggests ${currency} faces accelerated selling pressure - next support zone 80-120 pips lower`);
-            cons.push(`Central bank policy outlook appears less supportive for ${currency} relative to other major economies, reducing yield differential and carry trade appeal`);
-        } else {
-            cons.push(`Overbought conditions on ${currency} charts (RSI >70) may trigger profit-taking near resistance - particularly vulnerable to reversal at psychologically significant levels`);
-            cons.push(`Global risk sentiment remains fragile due to geopolitical tensions and economic uncertainty - ${currency} vulnerable to rapid reversal if risk-off flows accelerate`);
-            cons.push(`Upcoming economic data releases this week pose downside risk for ${currency} if results disappoint consensus expectations or reveal underlying economic weakness`);
-        }
-        
-        return cons;
-    }
-    
-    static generateSmartOutlook(currency, article, isBullish, isBearish) {
-        const impact = article.impact;
-        const timeframe = impact === 'high' ? '24-72 hours' : '3-7 days';
-        
-        if (isBullish) {
-            return `${currency} well-positioned to capitalize on ${article.title} over next ${timeframe}. Fundamental drivers align favorably with technical momentum supporting continued strength. Key resistance to watch: recent session highs and psychological round numbers. Support levels: previous day's close and 50-period moving average. Best trading strategy: wait for pullbacks to 38.2-50% Fibonacci retracement zones for optimal long entries. Recommended pairs: ${currency}/JPY for volatility traders, ${currency}/CHF for steady trends. Monitor correlation with equity markets - ${currency} typically strengthens with S&P 500 in current market regime. Exit signals: bearish divergence on RSI or break below key support.`;
-        } else if (isBearish) {
-            return `${currency} faces sustained pressure following ${article.title} with downside momentum likely to persist over next ${timeframe} unless major support levels hold. Technical structure suggests further weakness toward 100-180 pip targets below current levels if key support at recent lows fails. Risk management critical - avoid catching falling knives without clear reversal confirmation. Wait for: bullish engulfing candles on 4H charts, RSI bullish divergence, or positive fundamental catalyst before establishing long positions. Better risk-reward from fade-the-rally strategies into resistance (previous support turned resistance, moving averages). If major support breaks, expect accelerated selling as stops trigger algorithmic selling programs.`;
-        } else {
-            return `${currency} showing mixed signals following this development with near-term direction uncertain. Best approach: wait-and-see until clearer directional bias emerges from follow-up price action and economic data. If consolidation continues, implement range-bound strategies: buy near support with tight stops, sell near resistance. Breakout trading viable only with decisive break beyond range accompanied by 1.5-2x average volume. Key levels to monitor: recent session high/low for breakout signals, 50-period MA for trend direction. Upcoming economic releases will likely determine next major move - position accordingly with reduced size and wider stops to account for uncertainty.`;
-        }
-    }
-    
-    static generateGoldPros(article) {
-        return [
-            `Safe-haven demand supporting gold prices as ${article.title} creates market uncertainty and risk-off sentiment among investors`,
-            `Central bank buying programs continue to provide strong fundamental support for gold at current price levels`,
-            `Technical chart patterns showing bullish flag formation suggesting potential for upside breakout toward $2,100+ levels`
-        ];
-    }
-    
-    static generateGoldCons(article) {
-        return [
-            `Rising real yields making gold less attractive as opportunity cost of holding non-yielding asset increases`,
-            `Strong US dollar headwinds pressuring gold prices as inverse correlation remains intact in current market`,
-            `Profit-taking risk after recent rally could trigger 5-8% correction before resumption of uptrend`
-        ];
-    }
-    
-    static generateGoldOutlook(article) {
-        return `Gold (XAU/USD) maintaining its role as portfolio hedge amid ${article.title}. The precious metal should find support at $1,950-1,970 zone with resistance at $2,050-2,080. Central bank accumulation and geopolitical tensions provide fundamental floor. Near-term outlook depends on real yield trajectory and dollar strength. If 10-year TIPS yields break below 2%, expect gold rally toward $2,100+. Conversely, yields above 2.5% could pressure gold toward $1,900. Best strategy: accumulate on dips to $1,950-1,970 support zone, target $2,050-2,100 on rallies. Use 50-day MA ($1,935) as dynamic stop-loss level.`;
-    }
-    
-    static generateIntelligentSummary(article, bullish, bearish) {
-        return `${article.source} reports: ${article.title} - This ${article.impact}-impact development significantly influences forex markets. ${bullish.length > 0 ? bullish.join(', ') + ' strengthening on positive fundamentals. ' : ''}${bearish.length > 0 ? bearish.join(', ') + ' weakening on negative implications. ' : ''}Traders should monitor price action over next 4-24 hours for confirmation and position accordingly. Key economic data releases this week will validate or reverse current market reaction.`;
-    }
-    
-    static generateIntelligentFundamentals(article) {
-        const text = article.title.toLowerCase();
-        let analysis = `This ${article.impact}-impact news from ${article.source} affects FX markets through multiple channels. `;
-        
-        if (text.includes('rate') || text.includes('fed') || text.includes('central bank')) {
-            analysis += `Monetary policy implications are significant - interest rate expectations being repriced across curves. This directly impacts carry trade dynamics and capital flows. `;
-        }
-        
-        if (text.includes('inflation') || text.includes('cpi') || text.includes('pce')) {
-            analysis += `Inflation dynamics shifting market's view on central bank policy trajectory. Higher inflation typically forces hawkish pivots supporting currency strength. `;
-        }
-        
-        analysis += `The fundamental impact operates through interest rate differentials (primary driver of FX flows), relative economic growth expectations, and safe-haven demand shifts. Markets will validate this reaction through subsequent data and central bank communications over 48-72 hours.`;
-        
-        return analysis;
-    }
-    
-    static generateIntelligentTechnicals(article, bullish, bearish) {
-        let analysis = `Technical analysis reveals important developments following ${article.title}. `;
-        
-        if (bullish.length > 0) {
-            analysis += `${bullish[0]} pairs showing bullish momentum with potential breakouts - watch for volume confirmation above 1.5x average. `;
-        }
-        
-        if (bearish.length > 0) {
-            analysis += `${bearish[0]} crosses testing critical support - breakdown triggers cascade selling. `;
-        }
-        
-        analysis += `Key technical indicators: RSI levels flagging overbought/oversold extremes, MACD crossovers on 4H charts suggesting momentum shifts, moving average alignment confirming trend direction. Fibonacci retracements (38.2%, 50%, 61.8%) identify optimal entry zones. Volume analysis crucial - high-volume breaks show 70%+ follow-through while low-volume moves often reverse.`;
-        
-        return analysis;
-    }
-    
-    static generateIntelligentTrades(currencies, article) {
-        const trades = [];
-        const bullishCurr = currencies.filter(c => c.impact === 'Bullish');
-        const bearishCurr = currencies.filter(c => c.impact === 'Bearish');
-        
-        if (bullishCurr.length > 0 && bearishCurr.length > 0) {
-            trades.push({
-                setup: `${bullishCurr[0].currency}/${bearishCurr[0].currency} Long`,
-                entry: `Enter long on pullback to support (23.6-38.2% Fib retracement) OR aggressive breakout entry above recent highs with volume >1.5x average`,
-                stopLoss: `Stop 60-80 pips below entry at recent swing low (1-1.5% account risk maximum)`,
-                takeProfit: `TP1: 100-120 pips (take 40%), TP2: 180-220 pips (take 40%), trail final 20% with 20-EMA`,
-                reasoning: `Strong fundamental divergence between ${bullishCurr[0].currency} strength and ${bearishCurr[0].currency} weakness creates high-probability directional setup. Technical structure supports thesis across multiple timeframes.`
-            });
-        }
-        
-        if (currencies.some(c => c.currency === 'GOLD')) {
-            trades.push({
-                setup: `Gold (XAU/USD) Position`,
-                entry: `Buy gold on dips to $1,950-1,970 support zone with limit orders. Scale in with 3 positions.`,
-                stopLoss: `Stop below $1,935 (50-day MA) to limit risk to 1.5-2% of capital`,
-                takeProfit: `TP1: $2,020 (take 33%), TP2: $2,050 (take 33%), TP3: $2,100 (let run with trailing stop)`,
-                reasoning: `Safe-haven demand + central bank buying + geopolitical tension support gold. Technical setup favorable with risk-reward >2:1.`
-            });
-        }
-        
-        return trades;
-    }
-    
-    static generateKeyLevels() {
-        return {
-            support: [
-                "Today's session low - immediate support where buyers defend",
-                "Yesterday's low - key technical level watched by algos",
-                "Weekly pivot - institutional order clustering zone",
-                "Major swing low - critical support for trend continuation"
-            ],
-            resistance: [
-                "Today's session high - overhead supply barrier",
-                "Yesterday's high - key resistance for bulls to clear",
-                "Weekly pivot resistance - profit-taking zone",
-                "Major swing high - previous rally failure point"
-            ]
-        };
-    }
-    
-    static generateIntelligentRisks(article) {
-        return [
-            `Major economic data this week (NFP, CPI, central bank meetings) could override current narrative if results deviate >10% from consensus`,
-            `Central bank communications may walk back or reinforce implications - unexpected policy pivots reverse markets within hours`,
-            `Geopolitical shocks (conflicts, trade disputes, crises) trigger safe-haven flows overwhelming fundamental FX drivers`,
-            `Technical breakdown below major support triggers algorithmic cascade selling beyond fundamental justification`,
-            `Month-end/quarter-end institutional rebalancing can temporarily distort markets regardless of news`,
-            `Flash crashes during thin liquidity (Asian hours, holidays) can cause 100+ pip moves in seconds`
-        ];
-    }
-    
-    static generateMarketContext(article) {
-        return `Current market environment: Risk sentiment mixed with equity markets range-bound. Bond yields are key - rising yields support associated currencies through carry dynamics. Commodities showing correlation with risk appetite. USD/Gold maintains -0.75 inverse correlation, EUR/Equities +0.60 positive correlation. Watch upcoming economic releases and central bank speak for directional catalysts. Market positioning shows moderate conviction - crowded trades vulnerable to sharp reversals.`;
-    }
-    
-    static parseAIResponse(aiText, article, bullishCurrencies, bearishCurrencies) {
-        // Try to extract structured data from AI response
-        // If AI gives good structure, use it; otherwise fall back to backup
-        return this.backupAnalysis(article, bullishCurrencies, bearishCurrencies);
-    }
-}
-
-// Clear conversation history
-function clearConversationHistory() {
-    state.conversationHistory = [];
-    console.log('🗑️ Conversation history cleared');
-}
-
-// ===== State Management =====
-    static async analyze(prompt, context = {}) {
-        console.log('🤖 Base64 AI analyzing with context:', context);
-        
-        // Simulate processing time for realistic UX
-        await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
-        
-        try {
-            // Advanced pattern matching and analysis
-            const analysis = this.generateIntelligentAnalysis(prompt, context);
-            
-            console.log('✅ Base64 AI analysis complete');
-            return analysis;
-            
-        } catch (error) {
-            console.error('❌ Base64 AI Error:', error);
-            throw error;
-        }
-    }
-    
-    static generateIntelligentAnalysis(prompt, context) {
-        const { article, bullishCurrencies, bearishCurrencies } = context;
-        
-        // Extract key information
-        const impact = article?.impact || 'medium';
-        const title = article?.title || '';
-        const description = article?.description || '';
-        const centralBanks = article?.centralBanks || [];
-        
-        // Analyze sentiment and keywords
-        const text = (title + ' ' + description).toLowerCase();
-        
-        // Advanced keyword analysis
-        const hawkishWords = ['rate hike', 'tightening', 'inflation', 'hawkish', 'raise rates', 'restrictive'];
-        const dovishWords = ['rate cut', 'easing', 'stimulus', 'dovish', 'lower rates', 'accommodative'];
-        const volatilityWords = ['crisis', 'shock', 'unexpected', 'surprise', 'emergency'];
-        
-        const isHawkish = hawkishWords.some(w => text.includes(w));
-        const isDovish = dovishWords.some(w => text.includes(w));
-        const isHighVol = volatilityWords.some(w => text.includes(w));
-        
-        // Build comprehensive analysis
-        return this.buildProfessionalAnalysis({
-            article,
-            bullishCurrencies,
-            bearishCurrencies,
-            isHawkish,
-            isDovish,
-            isHighVol,
-            impact,
-            centralBanks
-        });
-    }
-    
-    static buildProfessionalAnalysis(data) {
-        const { article, bullishCurrencies, bearishCurrencies, isHawkish, isDovish, isHighVol, impact, centralBanks } = data;
-        
-        // Generate detailed currency analysis
-        const affectedCurrencies = [];
-        
-        bullishCurrencies.forEach(curr => {
-            affectedCurrencies.push({
-                currency: curr,
-                impact: 'Bullish',
-                pros: this.generateBullishPros(curr, article, isHawkish),
-                cons: this.generateBullishCons(curr, article),
-                outlook: this.generateOutlook(curr, 'bullish', article)
-            });
-        });
-        
-        bearishCurrencies.forEach(curr => {
-            affectedCurrencies.push({
-                currency: curr,
-                impact: 'Bearish',
-                pros: this.generateBearishPros(curr, article),
-                cons: this.generateBearishCons(curr, article, isDovish),
-                outlook: this.generateOutlook(curr, 'bearish', article)
-            });
-        });
-        
-        return {
-            summary: this.generateSummary(article, bullishCurrencies, bearishCurrencies),
-            fundamentalAnalysis: this.generateFundamentals(article, centralBanks, isHawkish, isDovish),
-            technicalOutlook: this.generateTechnicals(bullishCurrencies, bearishCurrencies, isHighVol),
-            affectedCurrencies: affectedCurrencies,
-            tradingRecommendations: this.generateTrades(bullishCurrencies, bearishCurrencies, impact),
-            keyLevels: this.generateKeyLevels(bullishCurrencies, bearishCurrencies),
-            riskFactors: this.generateRisks(article, isHighVol),
-            timeHorizon: impact === 'high' ? 'Short-term (1-3 days)' : impact === 'medium' ? 'Medium-term (1-2 weeks)' : 'Intraday (4-8 hours)',
-            confidenceLevel: impact === 'high' ? 'High (75-85%)' : 'Medium (60-75%)',
-            marketContext: this.generateMarketContext(article, centralBanks)
-        };
-    }
-    
-    static generateBullishPros(currency, article, isHawkish) {
-        return [
-            `${article.source} reports positive developments for ${currency} suggesting strengthening fundamentals and improved economic outlook following ${article.title.substring(0, 70)}`,
-            `${isHawkish ? 'Hawkish central bank rhetoric supports higher interest rate expectations, increasing ' + currency + ' yield appeal and attracting international capital flows' : 'Positive economic data flow supports ' + currency + ' with improved growth prospects and business confidence metrics'}`,
-            `Technical momentum building with ${currency} pairs showing bullish chart patterns including potential breakouts above key resistance levels and positive RSI divergence on multiple timeframes`
-        ];
-    }
-    
-    static generateBullishCons(currency) {
-        return [
-            `Overbought conditions on daily and 4-hour charts suggest ${currency} may face near-term profit-taking pressure, particularly around psychologically significant round numbers`,
-            "Global risk sentiment remains fragile - any unexpected geopolitical developments or financial stability concerns could trigger rapid risk-off flows reversing recent gains",
-            `Upcoming economic data releases this week could shift market sentiment if results disappoint consensus expectations or reveal underlying economic weakness`
-        ];
-    }
-    
-    static generateBearishPros(currency) {
-        return [
-            `Oversold technical conditions present potential counter-trend bounce opportunities for ${currency} as short-term traders take profits and bargain hunters emerge at support`,
-            "Major institutional support levels nearby may attract value-oriented buyers and slow the pace of decline, creating temporary stabilization",
-            `Market positioning data suggests ${currency} shorts may be crowded, increasing vulnerability to sharp short-covering rallies if positive catalysts emerge`
-        ];
-    }
-    
-    static generateBearishCons(currency, article, isDovish) {
-        return [
-            `${article.source} highlights significant challenges for ${currency} including ${article.title.substring(0, 70)} which undermines confidence and triggers capital outflows`,
-            `${isDovish ? 'Dovish central bank signals reduce ' + currency + ' yield advantage, making it less attractive for carry trades and international investors seeking returns' : 'Economic fundamentals deteriorating with ' + currency + ' facing headwinds from weakening data and policy uncertainty'}`,
-            `Technical breakdown below critical support suggests further downside risk with next major support zone 150-200 pips lower, potentially accelerating selling pressure`
-        ];
-    }
-    
-    static generateOutlook(currency, direction, article) {
-        if (direction === 'bullish') {
-            return `${currency} positioned to benefit from ${article.title} as fundamentals align favorably. The currency should see continued support over the next 1-3 trading days if economic data confirms the positive narrative and central bank rhetoric remains supportive. Key technical levels to watch include resistance at recent highs and support at yesterday's lows. Traders should look for pullbacks to support zones (23.6-38.2% Fibonacci retracements) as optimal entry points rather than chasing strength at resistance. Monitor correlations with equity markets and bond yields for confirmation - ${currency} strength typically aligns with risk-on sentiment and rising yields in current environment. Best trading approach: wait for intraday dips to support with volume confirmation before entering long positions.`;
-        } else {
-            return `${currency} faces near-term headwinds following ${article.title} as market participants reassess valuations and fundamental outlook. The pressure should persist unless key support levels hold firm and fundamentals show meaningful improvement through confirming economic data. Technical structure suggests path of least resistance is lower toward next major support zone. Traders should avoid attempting to catch falling knives - better risk-reward comes from waiting for clear reversal signals including bullish divergence on momentum indicators, volume spikes on bounces, or positive fundamental catalysts. Consider fade-the-rally strategies into resistance rather than bottom-picking. If major support fails, expect accelerated selling toward 1.5-2% lower levels as stops trigger and algorithmic selling intensifies.`;
-        }
-    }
-    
-    static generateSummary(article, bullish, bearish) {
-        return `${article.title} (${article.source}) - This ${article.impact}-impact development significantly affects FX markets. ${bullish.length > 0 ? bullish.join(', ') + ' showing strength through improved fundamentals and positive sentiment.' : ''} ${bearish.length > 0 ? bearish.join(', ') + ' under pressure from negative implications and deteriorating outlook.' : ''} Traders should monitor follow-through and confirmation through price action, volume patterns, and related economic data releases.`;
-    }
-    
-    static generateFundamentals(article, centralBanks, isHawkish, isDovish) {
-        return `This ${article.impact}-impact news from ${article.source} influences currency valuations through multiple transmission channels. ${centralBanks.length > 0 ? `With ${centralBanks.join(' and ')} directly involved, markets are rapidly repricing monetary policy expectations and interest rate differential forecasts. ` : ''}${isHawkish ? 'Hawkish policy signals support currencies through higher yield expectations, attracting carry trade flows and international capital seeking returns. ' : ''}${isDovish ? 'Dovish undertones reduce relative yield appeal, pressuring currencies as capital rotates toward higher-yielding alternatives. ' : ''}The fundamental impact operates through interest rate differentials, safe-haven demand shifts, and relative economic growth expectations. Markets will validate or reject this initial reaction through subsequent economic data releases, central bank communications, and cross-asset market behavior over the next 48-72 hours. Key to watch: bond yield movements, equity market response, and commodity price action which all influence FX through correlation mechanisms.`;
-    }
-    
-    static generateTechnicals(bullish, bearish, isHighVol) {
-        return `Technical analysis reveals important structural developments following this news. ${bullish.length > 0 ? `${bullish[0]} pairs showing bullish momentum with potential breakouts above resistance - watch for volume confirmation exceeding 1.5x average. ` : ''}${bearish.length > 0 ? `${bearish[0]} crosses testing critical support levels - breakdown could trigger cascade selling toward next major zone. ` : ''}${isHighVol ? 'Elevated volatility creates both opportunity and risk - expect wider bid-ask spreads and potential for false breakouts requiring confirmation. ' : ''}Key technical indicators: RSI levels signal overbought/oversold conditions, MACD crossovers on 4H charts suggest momentum shifts, moving average alignment confirms trend direction. Fibonacci retracements from recent swings identify optimal entry zones at 38.2% and 61.8% levels. Volume analysis crucial - high-volume breaks have 70%+ follow-through probability while low-volume moves often reverse. Price action near psychologically significant round numbers (1.1000, 150.00, etc.) attracts algorithmic activity and requires careful monitoring.`;
-    }
-    
-    static generateTrades(bullish, bearish, impact) {
-        const trades = [];
-        
-        if (bullish.length > 0 && bearish.length > 0) {
-            trades.push({
-                setup: `${bullish[0]}/${bearish[0]} Long Position`,
-                entry: `Enter long at current market OR wait for pullback to support zone (identified by previous 4H resistance, now support). Look for 15-minute bullish engulfing candle or hammer pattern at support with volume >1.3x average as confirmation signal. Alternative: aggressive breakout entry above recent highs with stop below breakout candle low.`,
-                stopLoss: `Initial stop: 60-80 pips below entry at recent swing low. For conservative traders: 100 pip stop below major support (risking 1-1.5% of account). Use trailing stop after 80 pip profit: trail by 20-period EMA on 1H chart or 40% of current profit. Never risk >2% account equity on single trade.`,
-                takeProfit: `TP1 at 100-120 pips (R:R 1.5:1): Take 40% profit here. TP2 at 180-220 pips (R:R 2.8:1): Take another 40%. Let final 20% run with trailing stop targeting 300+ pips if momentum sustains. Move stop to breakeven after TP1 achieved to ensure no-loss trade.`,
-                reasoning: `This directional trade captures fundamental divergence - ${bullish[0]} strength vs ${bearish[0]} weakness creates high-probability setup. ${impact === 'high' ? 'High-impact catalyst provides strong directional conviction.' : ''} Entry on pullback improves risk-reward dramatically vs chasing. Technical structure supports thesis across multiple timeframes. Exit strategy balances profit-taking with letting winners run. Key success factors: patience for entry, strict stop discipline, partial profit-taking, monitoring for reversal signals.`
-            });
-        }
-        
-        trades.push({
-            setup: `Range-Bound Strategy if Consolidation Develops`,
-            entry: `If market enters consolidation (4H candles within 60-80 pip range), implement mean-reversion strategy. Buy near range support with limit orders, sell near range resistance. Enter with limit orders 10-15 pips from exact support/resistance to ensure fills. Confirm range validity with minimum 3 touches of each boundary.`,
-            stopLoss: `Place stops 30-40 pips outside range boundaries to avoid noise while protecting against genuine breakouts. If stop hit, wait for range re-establishment before re-entering. Use smaller position sizes (50% normal) for range trading due to frequent entries/exits.`,
-            takeProfit: `Target opposite side of range minus 20 pips for realistic fills. Take full profit at target - don't hold through resistance/support. If range expands (breakout), exit immediately and reassess for directional trade setup.`,
-            reasoning: `Post-news consolidation is common as market digests information and awaits confirmation. Range trading capitalizes on this indecision with lower risk than directional bets. Mean-reversion odds favor fade-the-extreme strategies in consolidating markets. Lower position sizing accounts for multiple trades and maintains manageable risk.`
-        });
-        
-        return trades;
-    }
-    
-    static generateKeyLevels(bullish, bearish) {
-        return {
-            support: [
-                "Today's session low - immediate short-term support where early buyers defend positions",
-                "Yesterday's close - psychological level referenced by algorithms and human traders globally",
-                "Weekly pivot point - institutional order level calculated from last week's OHLC data",
-                "Previous swing low - major support where prior decline found buyers, break = trouble",
-                "Round number support (1.0800, 150.00, etc.) - attracts stops and algorithmic activity"
-            ],
-            resistance: [
-                "Today's session high - immediate overhead supply capping upside attempts",
-                "Yesterday's close - if trading below, this becomes resistance barrier to overcome",
-                "Weekly pivot resistance - calculated level where algorithmic selling concentrated",
-                "Previous swing high - zone where past rallies failed, clearing = very bullish",
-                "Round number resistance (1.1000, 151.00, etc.) - psychological barrier and stop cluster zone"
-            ]
-        };
-    }
-    
-    static generateRisks(article, isHighVol) {
-        return [
-            `Major economic data releases this week (NFP, CPI, GDP, central bank meetings) could override current narrative if results deviate >15% from consensus expectations - monitor economic calendar religiously`,
-            `Central bank official speeches may walk back or reinforce news implications - unexpected dovish/hawkish shifts can reverse markets within 2-3 hours creating severe whipsaw risk`,
-            `Geopolitical developments (military conflicts, trade disputes, political crises, regulatory shocks) trigger risk-off safe-haven flows overwhelming fundamental FX drivers - JPY/CHF/USD benefit, commodity currencies suffer`,
-            `${isHighVol ? 'Extreme volatility environment increases slippage risk and stop-hunting - use wider stops and smaller positions to account for erratic price action' : 'Technical breakdown below multi-month support could trigger algorithmic cascade selling beyond fundamental justification'}`,
-            `Month-end/quarter-end rebalancing flows from institutions can temporarily distort FX markets regardless of fundamentals - typically reverse after period close`,
-            `Correlation breakdowns: If normal relationships (USD/gold -0.80, risk currencies/equities +0.70) fail, signals unreliable - reduce exposure until correlations normalize`,
-            `Flash crashes or liquidity air-pockets can cause 100+ pip moves in seconds during thin trading (Asian hours, holidays) - never hold overleveraged positions overnight`
-        ];
-    }
-    
-    static generateMarketContext(article, centralBanks) {
-        return `Broader market environment critical for interpreting FX developments. Risk sentiment drives flows: stocks rallying (S&P >5800) supports risk currencies (AUD, NZD, EUR), while equity weakness (>2% declines) triggers safe-haven demand (JPY, CHF, USD). Bond yields equally important - rising 10Y yields support associated currency through carry dynamics, falling yields signal growth fears. Commodities matter: oil prices influence CAD/NOK, metals affect AUD, gold inversely correlates with USD (-0.78). Cross-asset correlations currently: USD/Gold -0.75, EUR/S&P500 +0.58, JPY/VIX +0.68. ${centralBanks.length > 0 ? 'Central bank meetings this week for ' + centralBanks.join(', ') + ' will provide policy clarity. ' : ''}Current market positioning shows ${article.impact === 'high' ? 'elevated uncertainty with defensive positioning' : 'moderate conviction'}. Watch for crowded trades vulnerable to sharp reversals if sentiment shifts.`;
+    } catch (error) {
+        console.error('❌ Gemini API Error:', error);
+        throw error;
     }
 }
 
@@ -1000,32 +498,46 @@ class MarketIntelligence {
                     <div class="spinner-ring"></div>
                     <div class="spinner-ring"></div>
                 </div>
-                <p class="loading-message">🤖 Puter.ai is analyzing market data...</p>
-                <p class="loading-submessage">Using real AI - FREE, no API key needed!</p>
+                <p class="loading-message">🧠 Gemini AI is analyzing market data...</p>
+                <p class="loading-submessage">Generating professional trading insights</p>
             </div>
         `;
         
         try {
             // Prepare context for AI
+            const currencies = Object.keys(article.currencySentiment || {});
             const sentiments = Object.entries(article.currencySentiment || {});
             const bullishCurrencies = sentiments.filter(([_, s]) => s === 'Bullish').map(([c]) => c);
             const bearishCurrencies = sentiments.filter(([_, s]) => s === 'Bearish').map(([c]) => c);
             
-            console.log('📤 Calling REAL AI for analysis...');
-            
-            // Call Real AI Engine
-            const analysis = await RealAI.analyze(article, bullishCurrencies, bearishCurrencies);
-            
-            console.log('✅ Real AI analysis complete:', analysis);
-            
-            // Store for potential follow-up
-            state.currentArticleAnalysis = {
-                article: article,
-                analysis: analysis,
-                timestamp: Date.now()
-            };
-            
-            return analysis;
+            // Create a comprehensive prompt for detailed analysis
+            const prompt = `You are an expert forex market analyst with 20+ years of experience. Analyze this breaking news article and provide detailed, actionable trading insights.
+
+ARTICLE INFORMATION:
+Title: ${article.title}
+Description: ${article.description}
+Source: ${article.source}
+Published: ${new Date(article.publishedAt).toLocaleString()}
+Impact Level: ${article.impact}
+Central Banks Mentioned: ${article.centralBanks?.join(', ') || 'None'}
+${article.goldSentiment ? `Gold/XAU Sentiment: ${article.goldSentiment}` : ''}
+
+DETECTED MARKET SENTIMENT:
+Bullish Currencies: ${bullishCurrencies.join(', ') || 'None'}
+Bearish Currencies: ${bearishCurrencies.join(', ') || 'None'}
+
+TASK: Provide a comprehensive professional analysis in valid JSON format. Be specific with currency names, actual price levels where possible, and actionable advice.
+
+YOUR RESPONSE MUST BE VALID JSON with this exact structure:
+{
+    "summary": "2-3 sentence executive summary of immediate market impact and what traders need to know right now",
+    
+    "fundamentalAnalysis": "4-5 sentences explaining the underlying economic drivers, why this news matters, how it affects monetary policy expectations, and the broader economic implications for the currencies involved",
+    
+    "technicalOutlook": "3-4 sentences describing likely price action, key technical levels to watch, momentum indicators, and chart patterns that traders should monitor",
+    
+    "affectedCurrencies": [
+        {
             "currency": "USD",
             "impact": "Bullish or Bearish or Neutral",
             "pros": ["Specific positive factor 1", "Specific positive factor 2", "Specific positive factor 3"],
@@ -1397,13 +909,8 @@ Provide a 2-3 sentence professional market overview focusing on:
 
 Keep it concise and actionable for traders. Respond with ONLY the overview text, no additional formatting.`;
 
-            const aiResult = await RealAI.analyze({
-                title: 'Market Overview',
-                description: currencyData + '\n\nRecent News:\n' + recentNews,
-                source: 'Market Analysis',
-                impact: 'medium'
-            }, [], []);
-            summary.overview = aiResult.summary;
+            const aiOverview = await callGeminiAPI(prompt);
+            summary.overview = aiOverview.trim();
             
         } catch (error) {
             console.error('AI Overview Error:', error);
@@ -1738,122 +1245,16 @@ async function fetchRSSFeed(feed) {
 
 async function fetchAllNews() {
     const allArticles = [];
+    const promises = CONFIG.RSS_FEEDS.map(feed => fetchRSSFeed(feed));
+    const results = await Promise.all(promises);
     
-    console.log('📡 Fetching news from', CONFIG.RSS_FEEDS.length, 'sources...');
+    results.forEach(articles => {
+        allArticles.push(...articles);
+    });
     
-    try {
-        const promises = CONFIG.RSS_FEEDS.map(feed => fetchRSSFeed(feed));
-        const results = await Promise.allSettled(promises);
-        
-        let successCount = 0;
-        results.forEach((result, index) => {
-            if (result.status === 'fulfilled' && result.value.length > 0) {
-                allArticles.push(...result.value);
-                successCount++;
-            } else {
-                console.warn(`Feed ${CONFIG.RSS_FEEDS[index].name} failed or returned no data`);
-            }
-        });
-        
-        console.log(`✅ Successfully loaded ${successCount}/${CONFIG.RSS_FEEDS.length} feeds`);
-        console.log(`📊 Total articles: ${allArticles.length}`);
-        
-        // If no articles loaded, use demo data
-        if (allArticles.length === 0) {
-            console.warn('⚠️ No real data loaded, using demo articles');
-            return getDemoArticles();
-        }
-        
-        allArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-        
-        return allArticles;
-    } catch (error) {
-        console.error('❌ Fatal error in fetchAllNews:', error);
-        return getDemoArticles();
-    }
-}
-
-// Demo articles for when RSS feeds fail
-function getDemoArticles() {
-    const now = new Date();
-    const demoArticles = [
-        {
-            title: "Fed Signals Hawkish Stance as Inflation Data Exceeds Expectations",
-            description: "Federal Reserve officials indicated a more aggressive approach to monetary policy after latest CPI data showed inflation running at 3.4%, above the 3.1% forecast. Markets now pricing in extended higher rates.",
-            url: "#",
-            publishedAt: new Date(now.getTime() - 1000 * 60 * 30).toISOString(),
-            source: "Reuters",
-            impact: "high",
-            type: "forex",
-            categories: new Set(['forex', 'USD']),
-            currencySentiment: { USD: 'Bullish', EUR: 'Bearish', GBP: 'Bearish' },
-            centralBanks: ['FED']
-        },
-        {
-            title: "ECB Dovish Surprise: Rate Cuts Expected Sooner Than Anticipated",
-            description: "European Central Bank President Christine Lagarde hinted at potential rate cuts in Q2 2024, citing weakening economic data across the eurozone. EUR/USD falls 80 pips on the news.",
-            url: "#",
-            publishedAt: new Date(now.getTime() - 1000 * 60 * 60).toISOString(),
-            source: "Bloomberg",
-            impact: "high",
-            type: "forex",
-            categories: new Set(['forex', 'EUR']),
-            currencySentiment: { EUR: 'Bearish', USD: 'Bullish' },
-            centralBanks: ['ECB']
-        },
-        {
-            title: "Gold Surges on Geopolitical Tensions and Safe-Haven Demand",
-            description: "Gold prices rally $25 per ounce to $2,045 as escalating Middle East tensions drive safe-haven flows. Technical breakout above $2,030 resistance confirms bullish momentum.",
-            url: "#",
-            publishedAt: new Date(now.getTime() - 1000 * 60 * 90).toISOString(),
-            source: "Kitco",
-            impact: "medium",
-            type: "gold",
-            categories: new Set(['gold']),
-            goldSentiment: 'Bullish',
-            currencySentiment: { USD: 'Neutral' },
-            centralBanks: []
-        },
-        {
-            title: "BOE Holds Rates Steady, But Signals Concern Over UK Growth",
-            description: "Bank of England maintains 5.25% rate but dovish commentary suggests potential pivot. GBP weakens across the board as traders price in rate cut probability increasing to 65% by June.",
-            url: "#",
-            publishedAt: new Date(now.getTime() - 1000 * 60 * 120).toISOString(),
-            source: "Financial Times",
-            impact: "high",
-            type: "forex",
-            categories: new Set(['forex', 'GBP']),
-            currencySentiment: { GBP: 'Bearish', USD: 'Bullish', EUR: 'Neutral' },
-            centralBanks: ['BoE']
-        },
-        {
-            title: "Strong Australian Employment Data Boosts AUD",
-            description: "Australia adds 64,000 jobs vs 25,000 expected, unemployment falls to 3.9%. AUD/USD rallies 60 pips as RBA rate cut bets pushed back to late 2024.",
-            url: "#",
-            publishedAt: new Date(now.getTime() - 1000 * 60 * 150).toISOString(),
-            source: "DailyFX",
-            impact: "medium",
-            type: "forex",
-            categories: new Set(['forex', 'AUD']),
-            currencySentiment: { AUD: 'Bullish', NZD: 'Bullish' },
-            centralBanks: ['RBA']
-        },
-        {
-            title: "Trump Proposes New Tariffs on Chinese Imports",
-            description: "Former President Trump announces plans for 60% tariffs on all Chinese goods if elected, raising concerns about trade war escalation. USD shows mixed reaction as safe-haven demand conflicts with growth concerns.",
-            url: "#",
-            publishedAt: new Date(now.getTime() - 1000 * 60 * 180).toISOString(),
-            source: "CNN Politics",
-            impact: "high",
-            type: "trump",
-            categories: new Set(['trump', 'forex']),
-            currencySentiment: { USD: 'Neutral', CNY: 'Bearish', JPY: 'Bullish' },
-            centralBanks: [],
-            trumpImpact: 'high'
-        }
-    ];
+    allArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
     
-    return demoArticles;
+    return allArticles;
 }
 
 // ===== UI Rendering =====
@@ -2659,82 +2060,44 @@ function getTimeAgo(date) {
     return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-// ===== Market Hours Functions =====
-function showMarketHours() {
-    renderMarketHours();
-    document.getElementById('marketHoursModal').classList.add('active');
+// ===== API Key Management =====
+function checkGeminiApiKey() {
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey && storedKey !== 'YOUR_GEMINI_API_KEY_HERE') {
+        CONFIG.GEMINI_API_KEY = storedKey;
+        return true;
+    }
+    return false;
 }
 
-function closeMarketHours() {
-    document.getElementById('marketHoursModal').classList.remove('active');
+function saveGeminiApiKey() {
+    const input = document.getElementById('geminiApiKeyInput');
+    const apiKey = input.value.trim();
+    
+    if (!apiKey) {
+        showToast('Error', 'Please enter a valid API key');
+        return;
+    }
+    
+    // Validate API key format (Gemini keys start with 'AIza')
+    if (!apiKey.startsWith('AIza')) {
+        showToast('Warning', 'This doesn\'t look like a valid Gemini API key. Gemini keys typically start with "AIza"');
+    }
+    
+    localStorage.setItem('gemini_api_key', apiKey);
+    CONFIG.GEMINI_API_KEY = apiKey;
+    
+    document.getElementById('apiKeyModal').classList.remove('active');
+    showToast('Success', 'API key saved! AI features are now enabled.');
 }
 
-function renderMarketHours() {
-    const container = document.getElementById('marketHoursContainer');
-    const now = new Date();
-    const utcHour = now.getUTCHours();
-    const utcMinute = now.getUTCMinutes();
-    const currentTime = utcHour + (utcMinute / 60);
-    
-    // Calculate session states
-    const sessions = {
-        sydney: { name: 'Sydney', flag: '🇦🇺', open: 22, close: 7, timezone: 'AEDT (UTC +11)', color: '#10b981' },
-        tokyo: { name: 'Tokyo', flag: '🇯🇵', open: 0, close: 9, timezone: 'JST (UTC +9)', color: '#ec4899' },
-        london: { name: 'London', flag: '🇬🇧', open: 8, close: 17, timezone: 'GMT (UTC +0)', color: '#3b82f6' },
-        newyork: { name: 'New York', flag: '🇺🇸', open: 13, close: 22, timezone: 'EST (UTC -5)', color: '#10b981' }
-    };
-    
-    // Determine which sessions are open
-    Object.keys(sessions).forEach(key => {
-        const session = sessions[key];
-        session.isOpen = session.open > session.close 
-            ? (currentTime >= session.open || currentTime < session.close)
-            : (currentTime >= session.open && currentTime < session.close);
-    });
-    
-    const openSessions = Object.values(sessions).filter(s => s.isOpen).length;
-    
-    let html = `<div class="market-hours-display">
-        <div class="current-time-display">
-            <div class="time-large">${now.toUTCString()}</div>
-            <div class="sessions-count">${openSessions} Session${openSessions !== 1 ? 's' : ''} Currently Open</div>
-        </div>
-        <div class="sessions-grid">`;
-    
-    Object.values(sessions).forEach(session => {
-        html += `
-            <div class="session-card ${session.isOpen ? 'active' : ''}">
-                <div class="session-header">
-                    <span class="session-flag">${session.flag}</span>
-                    <span class="session-name">${session.name}</span>
-                    <span class="session-status ${session.isOpen ? 'open' : 'closed'}">${session.isOpen ? 'OPEN' : 'CLOSED'}</span>
-                </div>
-                <div class="session-details">
-                    <div>${session.timezone}</div>
-                    <div>${session.open}:00 - ${session.close}:00 UTC</div>
-                </div>
-                <div class="session-bar" style="background: ${session.isOpen ? session.color : '#4b5563'}"></div>
-            </div>`;
-    });
-    
-    html += `</div>
-        <div class="best-times">
-            <h3>⭐ Best Trading Times</h3>
-            <div class="best-times-list">
-                <div class="time-slot high">
-                    <strong>12:00-16:00 UTC</strong> - London Open (Highest Volume)
-                </div>
-                <div class="time-slot medium">
-                    <strong>00:00-09:00 UTC</strong> - Tokyo Session (High Volatility)
-                </div>
-                <div class="time-slot low">
-                    <strong>13:00-22:00 UTC</strong> - New York Session
-                </div>
-            </div>
-        </div>
-    </div>`;
-    
-    container.innerHTML = html;
+function skipApiKeySetup() {
+    document.getElementById('apiKeyModal').classList.remove('active');
+    showToast('AI Disabled', 'You can enable AI features later from Settings');
+}
+
+function showApiKeySetup() {
+    document.getElementById('apiKeyModal').classList.add('active');
 }
 
 // ===== Real-time Update Loop =====
@@ -2752,33 +2115,16 @@ function startRealTimeUpdates() {
 
 // ===== Initialization =====
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 ForexLive Intelligence initializing...');
-    console.log('🤖 AI Engine: Puter.ai (FREE Claude 3.5 Sonnet)');
-    console.log('✅ No API key needed - Works instantly!');
+    // Check for Gemini API key
+    if (!checkGeminiApiKey()) {
+        // Show API key setup modal after a brief delay
+        setTimeout(() => {
+            showApiKeySetup();
+        }, 1000);
+    }
     
-    // Update status immediately
-    updateStatus('Starting up...', 'loading');
-    
-    // Load news with slight delay
-    setTimeout(() => {
-        console.log('📥 Loading news articles...');
-        loadAllNews().then(() => {
-            console.log('✅ News loaded successfully');
-        }).catch(error => {
-            console.error('❌ Error loading news:', error);
-            updateStatus('Using demo data', 'success');
-        });
-    }, 500);
-    
+    loadAllNews();
     startRealTimeUpdates();
-    
-    // Update market hours every minute
-    setInterval(() => {
-        const modal = document.getElementById('marketHoursModal');
-        if (modal && modal.classList.contains('active')) {
-            renderMarketHours();
-        }
-    }, 60000);
     
     // Close modals on backdrop click
     window.addEventListener('click', (e) => {
@@ -2788,18 +2134,13 @@ document.addEventListener('DOMContentLoaded', () => {
             closeAIAnalysis();
             closeCharts();
             closeTrumpTracker();
-            closeMarketHours();
         }
     });
     
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('✅ ForexLive Intelligence READY');
-    console.log('🤖 AI: Puter.ai with Claude 3.5 Sonnet');
+    console.log('ForexLive Intelligence with Real-time Features initialized successfully');
+    console.log('🧠 AI Powered by: Google Gemini');
     console.log('🦅 Trump Tracker: Enabled');
     console.log('📊 TradingView Charts: Enabled');
-    console.log('🕐 Market Hours: Real-time');
-    console.log('📈 Currency Strength: Enabled');
-    console.log('🔔 Notifications: Ready');
-    console.log('💱 Analysis: All pairs + GOLD');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📈 Currency Strength Meter: Enabled');
+    console.log('🔔 Push Notifications: Ready');
 });
